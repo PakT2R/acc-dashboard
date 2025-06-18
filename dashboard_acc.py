@@ -31,7 +31,7 @@ class ACCWebDashboard:
         """Inizializza il dashboard con gestione ambiente"""
         self.config = self.load_config()
         self.db_path = self.get_database_path()
-        self.is_github_deployment = self.detect_github_deployment()
+        #self.is_github_deployment = self.detect_github_deployment()
         
         # Verifica esistenza database
         if not self.check_database():
@@ -97,16 +97,17 @@ class ACCWebDashboard:
                     # Merge con default, priorità al file
                     merged_config = default_config.copy()
                     self._deep_merge(merged_config, file_config)
+                    
+                    # 🎯 IMPOSTA IL FLAG BASANDOSI SUL FILE CARICATO
+                    self.is_github_deployment = (config_file == 'acc_config_d.json')
+                    
                     return merged_config
                     
                 except Exception as e:
-                    st.warning(f"⚠️ Errore nel caricamento {config_file}: {e}")
                     continue
         
-        # Se nessun file trovato, usa configurazione di default
-        if self.is_github_deployment:
-            st.info("ℹ️ Usando configurazione di default per deployment cloud")
-        
+        # Se nessun file trovato, assume cloud per sicurezza
+        self.is_github_deployment = True
         return default_config
     
     def _deep_merge(self, base_dict: dict, update_dict: dict):
