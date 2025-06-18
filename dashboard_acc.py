@@ -1890,7 +1890,7 @@ def main():
             dashboard.show_4fun_report()
         
         elif page == "🏁 Report Best Lap":
-            dashboard.show_best_laps_report
+            dashboard.show_best_laps_report()
         
         elif page == "👤 Report Piloti":
             st.header("👤 Report Piloti")
