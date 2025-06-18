@@ -1873,7 +1873,7 @@ def main():
                 "🏠 Homepage",
                 "🏆 Report Campionati",
                 "🎮 Report Official 4Fun",
-                "🏁 Report Piste",
+                "🏁 Report Best Lap",
                 "👤 Report Piloti",
                 "📊 Statistiche Avanzate"
             ]
