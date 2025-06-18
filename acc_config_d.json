@@ -1,0 +1,9 @@
+{
+    "community": {
+        "name": "[E?]nigma Overdrive",
+        "description": "if you see this please edit it in acc_config.json"
+    },
+    "database": {
+        "path": "acc_stats.db"
+    }
+}
