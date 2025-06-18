@@ -51,46 +51,46 @@ class ACCWebDashboard:
         
         return db_path
     
-	def load_config(self) -> dict:
-		"""Carica configurazione con fallback per GitHub"""
-		config_sources = [
-			'acc_config.json',   # Locale
-			'acc_config_d.json', # GitHub
-		]
-		
-		# Configurazione di default
-		default_config = {
-			"community": {
-				"name": os.getenv('ACC_COMMUNITY_NAME', "[E?]nigma Overdrive"),
-				"description": os.getenv('ACC_COMMUNITY_DESC', "ACC Racing Community")
-			},
-			"database": {
-				"path": os.getenv('ACC_DATABASE_PATH', "acc_stats.db")
-			}
-		}
-		
-		# Prova a caricare da file
-		for config_file in config_sources:
-			if Path(config_file).exists():
-				try:
-					with open(config_file, 'r', encoding='utf-8') as f:
-						file_config = json.load(f)
-					
-					# Merge con default, priorità al file
-					merged_config = default_config.copy()
-					self._deep_merge(merged_config, file_config)
-					
-					# ?? IMPOSTA IL FLAG BASANDOSI SUL FILE CARICATO
-					self.is_github_deployment = (config_file == 'acc_config_d.json')
-					
-					return merged_config
-					
-				except Exception as e:
-					continue
-		
-		# Se nessun file trovato, assume cloud per sicurezza
-		self.is_github_deployment = True
-		return default_config
+    def load_config(self) -> dict:
+        """Carica configurazione con fallback per GitHub"""
+        config_sources = [
+            'acc_config.json',   # Locale
+            'acc_config_d.json', # GitHub
+        ]
+        
+        # Configurazione di default
+        default_config = {
+            "community": {
+                "name": os.getenv('ACC_COMMUNITY_NAME', "[E?]nigma Overdrive"),
+                "description": os.getenv('ACC_COMMUNITY_DESC', "ACC Racing Community")
+            },
+            "database": {
+                "path": os.getenv('ACC_DATABASE_PATH', "acc_stats.db")
+            }
+        }
+        
+        # Prova a caricare da file
+        for config_file in config_sources:
+            if Path(config_file).exists():
+                try:
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        file_config = json.load(f)
+                    
+                    # Merge con default, priorità al file
+                    merged_config = default_config.copy()
+                    self._deep_merge(merged_config, file_config)
+                    
+                    # ?? IMPOSTA IL FLAG BASANDOSI SUL FILE CARICATO
+                    self.is_github_deployment = (config_file == 'acc_config_d.json')
+                    
+                    return merged_config
+                    
+                except Exception as e:
+                    continue
+        
+        # Se nessun file trovato, assume cloud per sicurezza
+        self.is_github_deployment = True
+        return default_config
     
     def _deep_merge(self, base_dict: dict, update_dict: dict):
         """Merge ricorsivo di dizionari"""
