@@ -31,7 +31,6 @@ class ACCWebDashboard:
         """Inizializza il dashboard con gestione ambiente"""
         self.config = self.load_config()
         self.db_path = self.get_database_path()
-        self.is_github_deployment = self.detect_github_deployment()
         
         # Verifica esistenza database
         if not self.check_database():
@@ -40,23 +39,6 @@ class ACCWebDashboard:
         
         # CSS personalizzato
         self.inject_custom_css()
-    
-    def detect_github_deployment(self) -> bool:
-        """Rileva se l'app è in esecuzione su GitHub/Cloud"""
-        # Controlla variabili d'ambiente tipiche dei servizi cloud
-        cloud_indicators = [
-            'STREAMLIT_SHARING',         # Streamlit Cloud (legacy)
-            'STREAMLIT_CLOUD',           # Streamlit Cloud (nuovo)
-            'STREAMLIT_SERVER_HEADLESS', # Streamlit in produzione
-            'HEROKU',                    # Heroku
-            'RAILWAY_ENVIRONMENT',       # Railway
-            'RENDER',                    # Render
-            'GITHUB_ACTIONS',            # GitHub Actions
-            'VERCEL',                    # Vercel
-            'NETLIFY',                   # Netlify
-        ]
-        
-        return any(os.getenv(indicator) for indicator in cloud_indicators)
     
     def get_database_path(self) -> str:
         """Ottiene il percorso del database considerando l'ambiente"""
@@ -69,45 +51,46 @@ class ACCWebDashboard:
         
         return db_path
     
-    def load_config(self) -> dict:
-        """Carica configurazione con fallback per GitHub"""
-        config_sources = [
-            'acc_config.json',   # Locale
-            'acc_config_d.json', # GitHub
-        ]
-        
-        # Configurazione di default
-        default_config = {
-            "community": {
-                "name": os.getenv('ACC_COMMUNITY_NAME', "[E?]nigma Overdrive"),
-                "description": os.getenv('ACC_COMMUNITY_DESC', "ACC Racing Community")
-            },
-            "database": {
-                "path": os.getenv('ACC_DATABASE_PATH', "acc_stats.db")
-            }
-        }
-        
-        # Prova a caricare da file
-        for config_file in config_sources:
-            if Path(config_file).exists():
-                try:
-                    with open(config_file, 'r', encoding='utf-8') as f:
-                        file_config = json.load(f)
-                    
-                    # Merge con default, priorità al file
-                    merged_config = default_config.copy()
-                    self._deep_merge(merged_config, file_config)
-                    return merged_config
-                    
-                except Exception as e:
-                    st.warning(f"⚠️ Errore nel caricamento {config_file}: {e}")
-                    continue
-        
-        # Se nessun file trovato, usa configurazione di default
-        if self.is_github_deployment:
-            st.info("ℹ️ Usando configurazione di default per deployment cloud")
-        
-        return default_config
+	def load_config(self) -> dict:
+		"""Carica configurazione con fallback per GitHub"""
+		config_sources = [
+			'acc_config.json',   # Locale
+			'acc_config_d.json', # GitHub
+		]
+		
+		# Configurazione di default
+		default_config = {
+			"community": {
+				"name": os.getenv('ACC_COMMUNITY_NAME', "[E?]nigma Overdrive"),
+				"description": os.getenv('ACC_COMMUNITY_DESC', "ACC Racing Community")
+			},
+			"database": {
+				"path": os.getenv('ACC_DATABASE_PATH', "acc_stats.db")
+			}
+		}
+		
+		# Prova a caricare da file
+		for config_file in config_sources:
+			if Path(config_file).exists():
+				try:
+					with open(config_file, 'r', encoding='utf-8') as f:
+						file_config = json.load(f)
+					
+					# Merge con default, priorit� al file
+					merged_config = default_config.copy()
+					self._deep_merge(merged_config, file_config)
+					
+					# ?? IMPOSTA IL FLAG BASANDOSI SUL FILE CARICATO
+					self.is_github_deployment = (config_file == 'acc_config_d.json')
+					
+					return merged_config
+					
+				except Exception as e:
+					continue
+		
+		# Se nessun file trovato, assume cloud per sicurezza
+		self.is_github_deployment = True
+		return default_config
     
     def _deep_merge(self, base_dict: dict, update_dict: dict):
         """Merge ricorsivo di dizionari"""
