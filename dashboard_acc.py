@@ -1382,6 +1382,474 @@ class ACCWebDashboard:
         else:
             st.warning("❌ Nessuna sessione trovata per questa competizione")
 
+    def show_best_laps_report(self):
+        """Mostra il report Best Laps per pista"""
+        st.header("🏁 Report Best Laps")
+        
+        # Ottieni lista piste
+        tracks = self.get_tracks_list()
+        
+        if not tracks:
+            st.warning("❌ Nessuna pista trovata nel database")
+            return
+        
+        # Layout a due colonne per i filtri
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Selectbox pista
+            track_options = ["Seleziona una pista..."] + tracks
+            selected_track = st.selectbox(
+                "🏁 Seleziona Pista:",
+                options=track_options,
+                index=0,
+                key="track_select"
+            )
+        
+        with col2:
+            # Radio button per tipo statistiche
+            stats_type = st.radio(
+                "📊 Tipo Statistiche:",
+                options=["Tutte le Sessioni", "Solo Competizioni Ufficiali"],
+                index=0,
+                key="stats_type_select"
+            )
+        
+        if selected_track and selected_track != "Seleziona una pista...":
+            official_only = (stats_type == "Solo Competizioni Ufficiali")
+            self.show_track_details(selected_track, official_only)
+    
+    def get_tracks_list(self) -> List[str]:
+        """Ottiene lista piste disponibili nel database"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT DISTINCT track_name FROM sessions ORDER BY track_name')
+            tracks = [row[0] for row in cursor.fetchall()]
+            
+            conn.close()
+            return tracks
+            
+        except Exception as e:
+            st.error(f"❌ Errore nel recupero piste: {e}")
+            return []
+    
+    def show_track_details(self, track_name: str, official_only: bool = False):
+        """Mostra dettagli completi per la pista selezionata"""
+        
+        # Header pista con indicatore tipo statistiche
+        stats_indicator = "🏆 Solo Competizioni Ufficiali" if official_only else "📊 Tutte le Sessioni"
+        
+        st.markdown(f"""
+        <div class="championship-header">
+            <h2>🏁 {track_name}</h2>
+            <p>{stats_indicator}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Ottieni statistiche generali
+        track_stats = self.get_track_statistics(track_name, official_only)
+        
+        if not any(track_stats.values()):
+            st.warning("⚠️ Nessun dato disponibile per questa pista con i filtri selezionati")
+            return
+        
+        # Prima riga: Statistiche generali
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value">{track_stats['total_sessions']}</p>
+                <p class="metric-label">🎮 Sessioni Totali</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value">{track_stats['unique_drivers']}</p>
+                <p class="metric-label">👥 Piloti Unici</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value">{track_stats['total_laps']:,}</p>
+                <p class="metric-label">🔄 Giri Validi</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            best_time_str = self.format_lap_time(track_stats['best_time']) if track_stats['best_time'] else "N/A"
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value" style="font-size: 1.8rem;">{best_time_str}</p>
+                <p class="metric-label">⚡ Record Assoluto</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Seconda riga: Info record e media
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            record_holder = track_stats.get('record_holder', 'N/A')
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value" style="font-size: 1.5rem;">{record_holder}</p>
+                <p class="metric-label">🏆 Detentore Record</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            avg_time_str = self.format_lap_time(track_stats['avg_time']) if track_stats['avg_time'] else "N/A"
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value" style="font-size: 1.8rem;">{avg_time_str}</p>
+                <p class="metric-label">📈 Tempo Medio</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            # Calcola media giri per sessione
+            avg_laps = round(track_stats['total_laps'] / track_stats['total_sessions'], 1) if track_stats['total_sessions'] > 0 else 0
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value">{avg_laps}</p>
+                <p class="metric-label">📊 Media Giri/Sessione</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            # Ultima sessione su questa pista
+            last_session = track_stats.get('last_session_date')
+            if last_session:
+                try:
+                    last_date = datetime.fromisoformat(last_session.replace('Z', '+00:00'))
+                    days_ago = (datetime.now() - last_date).days
+                    if days_ago == 0:
+                        last_text = "Oggi"
+                    elif days_ago == 1:
+                        last_text = "Ieri"
+                    else:
+                        last_text = f"{days_ago} giorni fa"
+                except:
+                    last_text = "N/A"
+            else:
+                last_text = "N/A"
+            
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value" style="font-size: 1.5rem;">{last_text}</p>
+                <p class="metric-label">📅 Ultima Sessione</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Classifica Best Laps
+        st.markdown("---")
+        st.subheader("🏆 Classifica Best Laps per Pilota")
+        
+        leaderboard_df = self.get_track_leaderboard(track_name, official_only)
+        
+        if not leaderboard_df.empty:
+            # Prepara display leaderboard
+            leaderboard_display = leaderboard_df.copy()
+            
+            # Aggiungi medaglie per i primi 3
+            leaderboard_display['Posizione'] = leaderboard_display.reset_index().index + 1
+            leaderboard_display['Pos'] = leaderboard_display['Posizione'].apply(
+                lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(x)
+            )
+            
+            # Formatta tempi
+            leaderboard_display['Tempo Migliore'] = leaderboard_display['best_lap'].apply(
+                lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
+            )
+            
+            # Calcola gap dal leader
+            if len(leaderboard_display) > 1:
+                best_time = leaderboard_display.iloc[0]['best_lap']
+                leaderboard_display['Gap'] = leaderboard_display['best_lap'].apply(
+                    lambda x: f"+{self.format_time_duration(x - best_time)}" if x != best_time else "-"
+                )
+            else:
+                leaderboard_display['Gap'] = "-"
+            
+            # Formatta data
+            leaderboard_display['Data Record'] = leaderboard_display['session_date'].apply(
+                lambda x: self.format_session_date(x) if pd.notna(x) else "N/A"
+            )
+            
+            # Seleziona colonne finali
+            columns_to_show = ['Pos', 'driver_name', 'Tempo Migliore', 'Gap', 'total_laps', 'Data Record', 'session_type']
+            column_names = {
+                'Pos': 'Pos',
+                'driver_name': 'Pilota',
+                'Tempo Migliore': 'Tempo Migliore',
+                'Gap': 'Gap',
+                'total_laps': 'Giri Totali',
+                'Data Record': 'Data Record',
+                'session_type': 'Tipo Sessione'
+            }
+            
+            final_display = leaderboard_display[columns_to_show].copy()
+            final_display.columns = [column_names[col] for col in columns_to_show]
+            
+            # Mostra tabella con evidenziazione primi 3
+            st.dataframe(
+                final_display,
+                use_container_width=True,
+                hide_index=True,
+                height=500
+            )
+            
+            # Analisi gap per i top 10
+            if len(leaderboard_display) > 1:
+                st.subheader("⏱️ Analisi Gap Top 10")
+                
+                top_10 = leaderboard_display.head(10)
+                gap_analysis = []
+                
+                for idx, row in top_10.iterrows():
+                    if idx == 0:  # Leader
+                        gap_analysis.append(f"🥇 **{row['driver_name']}**: {row['Tempo Migliore']} (Leader)")
+                    else:
+                        gap_analysis.append(f"   {row['Pos']}. **{row['driver_name']}**: {row['Tempo Migliore']} ({row['Gap']})")
+                
+                for line in gap_analysis:
+                    st.markdown(line)
+        
+        else:
+            st.warning("⚠️ Nessun dato disponibile per la classifica")
+        
+        # Grafici
+        st.markdown("---")
+        self.show_track_charts(track_name, official_only, leaderboard_df)
+    
+    def get_track_statistics(self, track_name: str, official_only: bool = False) -> Dict:
+        """Ottiene statistiche generali per la pista"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Costruisci query base con filtro ufficiali se richiesto
+            official_filter = " AND s.competition_id IS NOT NULL" if official_only else ""
+            
+            # Statistiche generali
+            query = f'''
+                SELECT 
+                    COUNT(DISTINCT s.session_id) as total_sessions,
+                    COUNT(DISTINCT l.driver_id) as unique_drivers,
+                    COUNT(l.id) as total_laps,
+                    MIN(l.lap_time) as best_time,
+                    AVG(CAST(l.lap_time AS REAL)) as avg_time,
+                    MAX(s.session_date) as last_session_date
+                FROM sessions s
+                LEFT JOIN laps l ON s.session_id = l.session_id
+                WHERE s.track_name = ? AND l.is_valid_for_best = 1 AND l.lap_time > 0{official_filter}
+            '''
+            
+            cursor.execute(query, (track_name,))
+            result = cursor.fetchone()
+            
+            if result:
+                sessions, drivers, laps, best, avg, last_session = result
+                
+                # Chi detiene il record
+                record_query = f'''
+                    SELECT d.last_name 
+                    FROM laps l
+                    JOIN drivers d ON l.driver_id = d.driver_id
+                    JOIN sessions s ON l.session_id = s.session_id
+                    WHERE s.track_name = ? AND l.lap_time = ? AND l.is_valid_for_best = 1{official_filter}
+                    LIMIT 1
+                '''
+                
+                cursor.execute(record_query, (track_name, best))
+                record_result = cursor.fetchone()
+                record_holder = record_result[0] if record_result else "N/A"
+                
+                stats = {
+                    'total_sessions': sessions or 0,
+                    'unique_drivers': drivers or 0,
+                    'total_laps': laps or 0,
+                    'best_time': best,
+                    'avg_time': int(avg) if avg else None,
+                    'record_holder': record_holder,
+                    'last_session_date': last_session
+                }
+            else:
+                stats = {
+                    'total_sessions': 0,
+                    'unique_drivers': 0,
+                    'total_laps': 0,
+                    'best_time': None,
+                    'avg_time': None,
+                    'record_holder': 'N/A',
+                    'last_session_date': None
+                }
+            
+            conn.close()
+            return stats
+            
+        except Exception as e:
+            st.error(f"❌ Errore nel recupero statistiche pista: {e}")
+            return {}
+    
+    def get_track_leaderboard(self, track_name: str, official_only: bool = False) -> pd.DataFrame:
+        """Ottiene classifica best laps per pista"""
+        
+        # Costruisci query con filtro ufficiali se richiesto
+        official_filter = " AND s.competition_id IS NOT NULL" if official_only else ""
+        
+        query = f'''
+            SELECT 
+                d.last_name as driver_name,
+                d.short_name,
+                MIN(l.lap_time) as best_lap,
+                COUNT(l.id) as total_laps,
+                s.session_date,
+                s.session_type
+            FROM laps l
+            JOIN drivers d ON l.driver_id = d.driver_id
+            JOIN sessions s ON l.session_id = s.session_id
+            WHERE s.track_name = ? AND l.is_valid_for_best = 1 AND l.lap_time > 0{official_filter}
+            GROUP BY l.driver_id
+            ORDER BY best_lap ASC
+            LIMIT 50
+        '''
+        
+        return self.safe_sql_query(query, [track_name])
+    
+    def show_track_charts(self, track_name: str, official_only: bool, leaderboard_df: pd.DataFrame):
+        """Mostra grafici per la pista"""
+        if leaderboard_df.empty:
+            st.info("Nessun dato disponibile per i grafici")
+            return
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("📊 Distribuzione Tempi Top 20")
+            
+            # Grafico distribuzione tempi dei primi 20
+            top_20 = leaderboard_df.head(20).copy()
+            if not top_20.empty:
+                # Converti tempi in secondi per il grafico
+                top_20['tempo_secondi'] = top_20['best_lap'] / 1000
+                top_20 = top_20.sort_values('tempo_secondi', ascending=True)
+                
+                fig_times = px.bar(
+                    top_20,
+                    x='driver_name',
+                    y='tempo_secondi',
+                    title="Tempi Best Lap (Top 20)",
+                    color='tempo_secondi',
+                    color_continuous_scale='viridis'
+                )
+                fig_times.update_xaxes(tickangle=45)
+                fig_times.update_layout(height=400, showlegend=False)
+                fig_times.update_yaxes(title="Tempo (secondi)")
+                st.plotly_chart(fig_times, use_container_width=True)
+            else:
+                st.info("Dati insufficienti per il grafico distribuzione")
+        
+        with col2:
+            st.subheader("🔄 Attività per Pilota")
+            
+            # Grafico giri totali per pilota (top 15 più attivi)
+            activity_data = leaderboard_df.nlargest(15, 'total_laps').copy()
+            if not activity_data.empty:
+                activity_data = activity_data.sort_values('total_laps', ascending=True)
+                
+                fig_activity = px.bar(
+                    activity_data,
+                    x='total_laps',
+                    y='driver_name',
+                    orientation='h',
+                    title="Giri Totali per Pilota (Top 15)",
+                    color='total_laps',
+                    color_continuous_scale='greens'
+                )
+                fig_activity.update_layout(height=400, showlegend=False)
+                st.plotly_chart(fig_activity, use_container_width=True)
+            else:
+                st.info("Dati insufficienti per il grafico attività")
+        
+        # Grafico evoluzione record nel tempo (se abbastanza dati)
+        if len(leaderboard_df) > 5:
+            st.subheader("📈 Evoluzione Performance")
+            
+            # Ottieni dati storici per grafico evoluzione
+            evolution_data = self.get_track_evolution_data(track_name, official_only)
+            
+            if not evolution_data.empty and len(evolution_data) > 1:
+                fig_evolution = px.line(
+                    evolution_data,
+                    x='session_date',
+                    y='tempo_secondi',
+                    title=f"Evoluzione Record su {track_name}",
+                    hover_data=['driver_name', 'session_type']
+                )
+                fig_evolution.update_layout(height=400)
+                fig_evolution.update_yaxes(title="Tempo Record (secondi)")
+                fig_evolution.update_xaxes(title="Data")
+                st.plotly_chart(fig_evolution, use_container_width=True)
+            else:
+                st.info("Dati insufficienti per il grafico evoluzione")
+    
+    def get_track_evolution_data(self, track_name: str, official_only: bool = False) -> pd.DataFrame:
+        """Ottiene dati evoluzione record nel tempo"""
+        
+        official_filter = " AND s.competition_id IS NOT NULL" if official_only else ""
+        
+        query = f'''
+            SELECT 
+                s.session_date,
+                d.last_name as driver_name,
+                s.session_type,
+                MIN(l.lap_time) as best_lap_session
+            FROM laps l
+            JOIN drivers d ON l.driver_id = d.driver_id
+            JOIN sessions s ON l.session_id = s.session_id
+            WHERE s.track_name = ? AND l.is_valid_for_best = 1 AND l.lap_time > 0{official_filter}
+            GROUP BY s.session_id
+            ORDER BY s.session_date ASC
+        '''
+        
+        df = self.safe_sql_query(query, [track_name])
+        
+        if not df.empty:
+            # Calcola record progressivo
+            df['tempo_secondi'] = df['best_lap_session'] / 1000
+            df['record_progressivo'] = df['best_lap_session'].cummin()
+            df['tempo_secondi'] = df['record_progressivo'] / 1000
+            
+            # Filtra solo i miglioramenti del record
+            df = df[df['best_lap_session'] == df['record_progressivo']].copy()
+        
+        return df
+    
+    def format_time_duration(self, milliseconds: int) -> str:
+        """Formatta durata in millisecondi per gap"""
+        if not milliseconds or milliseconds <= 0:
+            return "0.000"
+        
+        if milliseconds < 1000:
+            return f"0.{milliseconds:03d}"
+        else:
+            seconds = milliseconds / 1000
+            return f"{seconds:.3f}"
+    
+    def format_session_date(self, session_date: str) -> str:
+        """Formatta data sessione per visualizzazione"""
+        try:
+            date_obj = datetime.fromisoformat(session_date.replace('Z', '+00:00'))
+            return date_obj.strftime('%d/%m/%Y')
+        except:
+            return session_date[:10] if session_date else 'N/A'
 
 def main():
     """Funzione principale dell'applicazione"""
@@ -1421,9 +1889,8 @@ def main():
         elif page == "🎮 Report Official 4Fun":
             dashboard.show_4fun_report()
         
-        elif page == "🏁 Report Piste":
-            st.header("🏁 Report Piste")
-            st.info("🚧 Sezione in sviluppo - sarà implementata prossimamente")
+        elif page == "🏁 Report Best Lap":
+            dashboard.show_best_laps_report
         
         elif page == "👤 Report Piloti":
             st.header("👤 Report Piloti")
