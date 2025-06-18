@@ -19,7 +19,7 @@ from typing import Optional, Dict, List, Tuple
 # Configurazione pagina
 st.set_page_config(
     page_title="ACC Server Dashboard",
-    page_icon="🏁",
+    page_icon="ðŸ",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -42,7 +42,7 @@ class ACCWebDashboard:
     
     def get_database_path(self) -> str:
         """Ottiene il percorso del database considerando l'ambiente"""
-        # Priorità: variabile d'ambiente > config file > default
+        # PrioritÃ : variabile d'ambiente > config file > default
         db_path = (
             os.getenv('ACC_DATABASE_PATH') or 
             self.config.get('database', {}).get('path') or 
@@ -76,7 +76,7 @@ class ACCWebDashboard:
 					with open(config_file, 'r', encoding='utf-8') as f:
 						file_config = json.load(f)
 					
-					# Merge con default, priorit� al file
+					# Merge con default, priorità al file
 					merged_config = default_config.copy()
 					self._deep_merge(merged_config, file_config)
 					
@@ -101,7 +101,7 @@ class ACCWebDashboard:
                 base_dict[key] = value
     
     def check_database(self) -> bool:
-        """Verifica esistenza e validità del database"""
+        """Verifica esistenza e validitÃ  del database"""
         if not Path(self.db_path).exists():
             return False
         
@@ -126,11 +126,11 @@ class ACCWebDashboard:
     
     def show_database_error(self):
         """Mostra errore database con istruzioni specifiche per l'ambiente"""
-        st.error("❌ **Database non disponibile**")
+        st.error("âŒ **Database non disponibile**")
         
         if self.is_github_deployment:
             st.markdown("""
-            ### 🔄 Database in aggiornamento
+            ### ðŸ”„ Database in aggiornamento
             
             Il database potrebbe essere in fase di aggiornamento. 
             Riprova tra qualche minuto.
@@ -142,7 +142,7 @@ class ACCWebDashboard:
             """)
         else:
             st.markdown(f"""
-            ### 🚀 Setup Locale
+            ### ðŸš€ Setup Locale
             
             **Database non trovato:** `{self.db_path}`
             
@@ -282,7 +282,7 @@ class ACCWebDashboard:
         if not self.is_github_deployment:
             st.markdown("""
             <div class="environment-indicator local-badge">
-                🏠 Locale
+                ðŸ  Locale
             </div>
             """, unsafe_allow_html=True)
     
@@ -316,7 +316,7 @@ class ACCWebDashboard:
                     result = cursor.fetchone()
                     stats[key] = result[0] if result else 0
                 except Exception as e:
-                    st.warning(f"⚠️ Errore nella query {key}: {e}")
+                    st.warning(f"âš ï¸ Errore nella query {key}: {e}")
                     stats[key] = 0
             
             # Ultima sessione
@@ -334,7 +334,7 @@ class ACCWebDashboard:
             return stats
             
         except Exception as e:
-            st.error(f"❌ Errore nel recupero statistiche: {e}")
+            st.error(f"âŒ Errore nel recupero statistiche: {e}")
             # Ritorna statistiche vuote invece di crashare
             return {
                 'total_drivers': 0,
@@ -367,7 +367,7 @@ class ACCWebDashboard:
             conn.close()
             return df
         except Exception as e:
-            st.error(f"❌ Errore nella query: {e}")
+            st.error(f"âŒ Errore nella query: {e}")
             return pd.DataFrame()
     
     def show_homepage(self):
@@ -379,14 +379,14 @@ class ACCWebDashboard:
         community_name = self.config['community']['name']
         st.markdown(f"""
         <div class="main-header">
-            <h1>🏁 {community_name}</h1>
+            <h1>ðŸ {community_name}</h1>
             <h3>ACC Server Dashboard</h3>
         </div>
         """, unsafe_allow_html=True)
         
         # Info deployment per admin (solo in locale)
         if not self.is_github_deployment:
-            with st.expander("ℹ️ Info Sistema", expanded=False):
+            with st.expander("â„¹ï¸ Info Sistema", expanded=False):
                 st.write(f"**Database:** `{self.db_path}`")
                 st.write(f"**Configurazione:** Caricata")
                 st.write(f"**Ambiente:** Sviluppo Locale")
@@ -395,7 +395,7 @@ class ACCWebDashboard:
         stats = self.get_database_stats()
         
         if not any(stats.values()):
-            st.warning("⚠️ Nessun dato disponibile nel database")
+            st.warning("âš ï¸ Nessun dato disponibile nel database")
             return
         
         # PRIMA RIGA - Layout a colonne per le metriche
@@ -405,7 +405,7 @@ class ACCWebDashboard:
             st.markdown(f"""
             <div class="metric-card">
                 <p class="metric-value">{stats['total_drivers']}</p>
-                <p class="metric-label">👥 Piloti Registrati</p>
+                <p class="metric-label">ðŸ‘¥ Piloti Registrati</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -413,7 +413,7 @@ class ACCWebDashboard:
             st.markdown(f"""
             <div class="metric-card">
                 <p class="metric-value">{stats['total_sessions']}</p>
-                <p class="metric-label">🎮 Sessioni Totali</p>
+                <p class="metric-label">ðŸŽ® Sessioni Totali</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -421,7 +421,7 @@ class ACCWebDashboard:
             st.markdown(f"""
             <div class="metric-card">
                 <p class="metric-value">{stats['total_laps']:,}</p>
-                <p class="metric-label">🔄 Giri Totali</p>
+                <p class="metric-label">ðŸ”„ Giri Totali</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -431,7 +431,7 @@ class ACCWebDashboard:
             st.markdown(f"""
             <div class="metric-card">
                 <p class="metric-value">{avg_laps}</p>
-                <p class="metric-label">📊 Media Giri/Sessione</p>
+                <p class="metric-label">ðŸ“Š Media Giri/Sessione</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -442,7 +442,7 @@ class ACCWebDashboard:
             st.markdown(f"""
             <div class="metric-card">
                 <p class="metric-value">{stats['total_championships']}</p>
-                <p class="metric-label">🏆 Campionati Conclusi</p>
+                <p class="metric-label">ðŸ† Campionati Conclusi</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -450,7 +450,7 @@ class ACCWebDashboard:
             st.markdown(f"""
             <div class="metric-card">
                 <p class="metric-value">{stats['completed_competitions']}</p>
-                <p class="metric-label">🏁 Competizioni Campionati</p>
+                <p class="metric-label">ðŸ Competizioni Campionati</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -459,7 +459,7 @@ class ACCWebDashboard:
             st.markdown(f"""
             <div class="metric-card">
                 <p class="metric-value">{championship_sessions}</p>
-                <p class="metric-label">🎯 Sessioni Campionati</p>
+                <p class="metric-label">ðŸŽ¯ Sessioni Campionati</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -483,7 +483,7 @@ class ACCWebDashboard:
             st.markdown(f"""
             <div class="metric-card">
                 <p class="metric-value" style="font-size: 1.8rem;">{last_text}</p>
-                <p class="metric-label">📅 Ultima Sessione Campionati</p>
+                <p class="metric-label">ðŸ“… Ultima Sessione Campionati</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -499,7 +499,7 @@ class ACCWebDashboard:
             col1, col2 = st.columns(2)
             
             with col1:
-                st.subheader("📊 Sessioni per Settimana")
+                st.subheader("ðŸ“Š Sessioni per Settimana")
                 
                 # Query per sessioni per settimana
                 query_sessions = """
@@ -516,7 +516,7 @@ class ACCWebDashboard:
                 df_sessions = self.safe_sql_query(query_sessions)
                 
                 if not df_sessions.empty:
-                    # Formatta le date per una migliore leggibilità
+                    # Formatta le date per una migliore leggibilitÃ 
                     df_sessions['week_label'] = pd.to_datetime(df_sessions['week_start']).dt.strftime('%d/%m')
                     
                     fig_sessions = px.bar(
@@ -527,16 +527,16 @@ class ACCWebDashboard:
                         color='sessions',
                         color_continuous_scale='blues'
                     )
-                    fig_sessions.update_xaxes(title="Settimana (Lunedì)")
+                    fig_sessions.update_xaxes(title="Settimana (LunedÃ¬)")
                     fig_sessions.update_layout(height=400, showlegend=False)
                     st.plotly_chart(fig_sessions, use_container_width=True)
                 else:
                     st.info("Nessun dato disponibile per il grafico sessioni")
             
             with col2:
-                st.subheader("👥 Piloti Più Attivi")
+                st.subheader("ðŸ‘¥ Piloti PiÃ¹ Attivi")
                 
-                # Query per piloti più attivi
+                # Query per piloti piÃ¹ attivi
                 query_active = """
                 SELECT 
                     d.last_name as driver,
@@ -558,19 +558,19 @@ class ACCWebDashboard:
                         x='sessions', 
                         y='driver',
                         orientation='h',
-                        title="Top 10 Piloti per Attività",
+                        title="Top 10 Piloti per AttivitÃ ",
                         color='sessions',
                         color_continuous_scale='greens'
                     )
                     fig_active.update_layout(height=400, showlegend=False)
                     st.plotly_chart(fig_active, use_container_width=True)
                 else:
-                    st.info("Nessun dato disponibile per il grafico attività")
+                    st.info("Nessun dato disponibile per il grafico attivitÃ ")
             
             conn.close()
             
         except Exception as e:
-            st.error(f"❌ Errore nel caricamento grafici: {e}")
+            st.error(f"âŒ Errore nel caricamento grafici: {e}")
     
     # [Tutte le altre funzioni rimangono identiche]
     def get_championships_list(self) -> List[Tuple]:
@@ -601,7 +601,7 @@ class ACCWebDashboard:
             return championships
             
         except Exception as e:
-            st.error(f"❌ Errore nel recupero campionati: {e}")
+            st.error(f"âŒ Errore nel recupero campionati: {e}")
             return []
     
     def get_championship_standings(self, championship_id: int) -> pd.DataFrame:
@@ -658,7 +658,7 @@ class ACCWebDashboard:
             return competitions
             
         except Exception as e:
-            st.error(f"❌ Errore nel recupero competizioni: {e}")
+            st.error(f"âŒ Errore nel recupero competizioni: {e}")
             return []
     
     def get_competition_results(self, competition_id: int) -> pd.DataFrame:
@@ -710,7 +710,7 @@ class ACCWebDashboard:
             return sessions
             
         except Exception as e:
-            st.error(f"❌ Errore nel recupero sessioni: {e}")
+            st.error(f"âŒ Errore nel recupero sessioni: {e}")
             return []
     
     def get_session_results(self, session_id: str) -> pd.DataFrame:
@@ -765,18 +765,18 @@ class ACCWebDashboard:
             return competitions
             
         except Exception as e:
-            st.error(f"❌ Errore nel recupero competizioni 4Fun: {e}")
+            st.error(f"âŒ Errore nel recupero competizioni 4Fun: {e}")
             return []
     
     def show_4fun_report(self):
         """Mostra il report competizioni 4Fun"""
-        st.header("🎮 Report Official 4Fun")
+        st.header("ðŸŽ® Report Official 4Fun")
         
         # Ottieni lista competizioni 4Fun
         competitions = self.get_4fun_competitions_list()
         
         if not competitions:
-            st.warning("❌ Nessuna competizione 4Fun trovata nel database")
+            st.warning("âŒ Nessuna competizione 4Fun trovata nel database")
             st.info("""
             **Le competizioni 4Fun sono:**
             - Competizioni con `competition_id` valorizzato
@@ -791,7 +791,7 @@ class ACCWebDashboard:
         for comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed in competitions:
             # Formato display
             round_str = f"R{round_num} - " if round_num else ""
-            status_str = " ✅" if is_completed else " 🔄"
+            status_str = " âœ…" if is_completed else " ðŸ”„"
             
             if date_start:
                 date_str = f" - {date_start[:10]}"
@@ -803,9 +803,9 @@ class ACCWebDashboard:
             competition_options.append(display_name)
             competition_map[display_name] = comp_id
         
-        # Selectbox competizione (default: prima = più recente)
+        # Selectbox competizione (default: prima = piÃ¹ recente)
         selected_competition = st.selectbox(
-            "🎮 Seleziona Competizione 4Fun:",
+            "ðŸŽ® Seleziona Competizione 4Fun:",
             options=competition_options,
             index=0,
             key="4fun_competition_select"
@@ -827,9 +827,9 @@ class ACCWebDashboard:
                 round_str = f"Round {round_num} - " if round_num else ""
                 st.markdown(f"""
                 <div class="competition-header" style="background: linear-gradient(90deg, #28a745, #20c997);">
-                    <h2>🎮 {round_str}{name}</h2>
-                    <p>📍 {track} | 📋 {weekend_format}</p>
-                    {f'<p>📅 {date_start} - {date_end}</p>' if date_start and date_end else f'<p>📅 {date_start}</p>' if date_start else ''}
+                    <h2>ðŸŽ® {round_str}{name}</h2>
+                    <p>ðŸ“ {track} | ðŸ“‹ {weekend_format}</p>
+                    {f'<p>ðŸ“… {date_start} - {date_end}</p>' if date_start and date_end else f'<p>ðŸ“… {date_start}</p>' if date_start else ''}
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -841,7 +841,7 @@ class ACCWebDashboard:
         comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed = competition_info
         
         # Risultati competizione (stesso metodo)
-        st.subheader("🏆 Classifica 4Fun")
+        st.subheader("ðŸ† Classifica 4Fun")
         results_df = self.get_competition_results(competition_id)
         
         if not results_df.empty:
@@ -850,7 +850,7 @@ class ACCWebDashboard:
             
             # Aggiungi medaglie
             results_display['Pos'] = results_display['position'].apply(
-                lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(int(x)) if pd.notna(x) else "NC"
+                lambda x: "ðŸ¥‡" if x == 1 else "ðŸ¥ˆ" if x == 2 else "ðŸ¥‰" if x == 3 else str(int(x)) if pd.notna(x) else "NC"
             )
             
             # Formatta tempi giro
@@ -888,11 +888,11 @@ class ACCWebDashboard:
             self.show_4fun_charts(results_df)
             
         else:
-            st.warning("⚠️ Risultati competizione 4Fun non ancora calcolati")
+            st.warning("âš ï¸ Risultati competizione 4Fun non ancora calcolati")
         
         # Sessioni della competizione (stesso metodo)
         st.markdown("---")
-        st.subheader("🎮 Sessioni della Competizione 4Fun")
+        st.subheader("ðŸŽ® Sessioni della Competizione 4Fun")
         
         sessions = self.get_competition_sessions(competition_id)
         
@@ -908,8 +908,8 @@ class ACCWebDashboard:
                 # Header sessione
                 st.markdown(f"""
                 <div class="session-header">
-                    <strong>🏁 {session_type}</strong> - {date_str} | 👥 {total_drivers} piloti
-                    {f'| ⚡ Best: {self.format_lap_time(best_lap_overall)}' if best_lap_overall else ''}
+                    <strong>ðŸ {session_type}</strong> - {date_str} | ðŸ‘¥ {total_drivers} piloti
+                    {f'| âš¡ Best: {self.format_lap_time(best_lap_overall)}' if best_lap_overall else ''}
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -922,7 +922,7 @@ class ACCWebDashboard:
                     
                     # Aggiungi medaglie per primi 3
                     session_display['Pos'] = session_display['position'].apply(
-                        lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(int(x)) if pd.notna(x) else "NC"
+                        lambda x: "ðŸ¥‡" if x == 1 else "ðŸ¥ˆ" if x == 2 else "ðŸ¥‰" if x == 3 else str(int(x)) if pd.notna(x) else "NC"
                     )
                     
                     # Formatta tempo giro
@@ -956,11 +956,11 @@ class ACCWebDashboard:
                         hide_index=True
                     )
                 else:
-                    st.warning(f"⚠️ Nessun risultato trovato per {session_type}")
+                    st.warning(f"âš ï¸ Nessun risultato trovato per {session_type}")
                 
                 st.markdown("<br>", unsafe_allow_html=True)
         else:
-            st.warning("❌ Nessuna sessione trovata per questa competizione 4Fun")
+            st.warning("âŒ Nessuna sessione trovata per questa competizione 4Fun")
     
     def show_4fun_charts(self, results_df: pd.DataFrame):
         """Mostra grafici specifici per competizioni 4Fun"""
@@ -970,7 +970,7 @@ class ACCWebDashboard:
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("📊 Distribuzione Punti 4Fun")
+            st.subheader("ðŸ“Š Distribuzione Punti 4Fun")
             
             # Grafico punti totali (solo chi ha punti > 0)
             points_data = results_df[results_df['total_points'] > 0].copy()
@@ -993,7 +993,7 @@ class ACCWebDashboard:
                 st.info("Nessun punto assegnato ancora")
         
         with col2:
-            st.subheader("⚡ Performance Qualifiche vs Gara")
+            st.subheader("âš¡ Performance Qualifiche vs Gara")
             
             # Scatter plot qualifiche vs gara (solo piloti classificati)
             scatter_data = results_df[
@@ -1032,13 +1032,13 @@ class ACCWebDashboard:
 
     def show_championships_report(self):
         """Mostra il report campionati"""
-        st.header("🏆 Report Campionati")
+        st.header("ðŸ† Report Campionati")
         
         # Ottieni lista campionati
         championships = self.get_championships_list()
         
         if not championships:
-            st.warning("❌ Nessun campionato trovato nel database")
+            st.warning("âŒ Nessun campionato trovato nel database")
             return
         
         # Prepara opzioni per selectbox
@@ -1048,7 +1048,7 @@ class ACCWebDashboard:
         for champ_id, name, season, start_date, end_date, is_completed, description in championships:
             # Formato display
             season_str = f" ({season})" if season else ""
-            status_str = " ✅" if is_completed else " 🔄"
+            status_str = " âœ…" if is_completed else " ðŸ”„"
             
             if start_date:
                 date_str = f" - {start_date[:10]}"
@@ -1062,7 +1062,7 @@ class ACCWebDashboard:
         
         # Selectbox campionato
         selected_championship = st.selectbox(
-            "🏆 Seleziona Campionato:",
+            "ðŸ† Seleziona Campionato:",
             options=championship_options,
             index=0,
             key="championship_select"
@@ -1086,21 +1086,21 @@ class ACCWebDashboard:
                 # Costruisci l'HTML completo
                 header_html = f"""
                 <div class="championship-header">
-                    <h2>🏆 {name}{season_info}</h2>
+                    <h2>ðŸ† {name}{season_info}</h2>
                 """
                 
                 if description:
                     header_html += f"<p>{description}</p>"
                 
                 if start_date and end_date:
-                    header_html += f"<p>📅 {start_date} - {end_date}</p>"
+                    header_html += f"<p>ðŸ“… {start_date} - {end_date}</p>"
                 
                 header_html += "</div>"
                 
                 st.markdown(header_html, unsafe_allow_html=True)
                 
                 # Classifica campionato
-                st.subheader("📊 Classifica Campionato")
+                st.subheader("ðŸ“Š Classifica Campionato")
                 standings_df = self.get_championship_standings(championship_id)
                 
                 if not standings_df.empty:
@@ -1109,7 +1109,7 @@ class ACCWebDashboard:
                     
                     # Aggiungi medaglie per primi 3
                     standings_display['Pos'] = standings_display['position'].apply(
-                        lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(x)
+                        lambda x: "ðŸ¥‡" if x == 1 else "ðŸ¥ˆ" if x == 2 else "ðŸ¥‰" if x == 3 else str(x)
                     )
                     
                     # Seleziona colonne da mostrare
@@ -1181,7 +1181,7 @@ class ACCWebDashboard:
                             st.info("Nessun podio registrato ancora")
                 
                 else:
-                    st.warning("⚠️ Classifica campionato non ancora calcolata")
+                    st.warning("âš ï¸ Classifica campionato non ancora calcolata")
                 
                 # Selezione competizione
                 st.markdown("---")
@@ -1189,13 +1189,13 @@ class ACCWebDashboard:
     
     def show_competition_selection(self, championship_id: int):
         """Mostra selezione e dettagli competizione"""
-        st.subheader("🏁 Competizioni del Campionato")
+        st.subheader("ðŸ Competizioni del Campionato")
         
         # Ottieni competizioni
         competitions = self.get_championship_competitions(championship_id)
         
         if not competitions:
-            st.warning("❌ Nessuna competizione trovata per questo campionato")
+            st.warning("âŒ Nessuna competizione trovata per questo campionato")
             return
         
         # Prepara opzioni per selectbox
@@ -1205,7 +1205,7 @@ class ACCWebDashboard:
         for comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed in competitions:
             # Formato display
             round_str = f"R{round_num} - " if round_num else ""
-            status_str = " ✅" if is_completed else " 🔄"
+            status_str = " âœ…" if is_completed else " ðŸ”„"
             date_str = f" ({date_start[:10]})" if date_start else ""
             
             display_name = f"{round_str}{name} - {track}{date_str}{status_str}"
@@ -1215,7 +1215,7 @@ class ACCWebDashboard:
         
         # Selectbox competizione
         selected_competition = st.selectbox(
-            "🏁 Seleziona Competizione:",
+            "ðŸ Seleziona Competizione:",
             options=competition_options,
             index=0,
             key="competition_select"
@@ -1241,13 +1241,13 @@ class ACCWebDashboard:
         round_str = f"Round {round_num} - " if round_num else ""
         st.markdown(f"""
         <div class="competition-header">
-            <h3>🏁 {round_str}{name}</h3>
-            <p>📍 {track} | 📋 {weekend_format} | 📅 {date_start}</p>
+            <h3>ðŸ {round_str}{name}</h3>
+            <p>ðŸ“ {track} | ðŸ“‹ {weekend_format} | ðŸ“… {date_start}</p>
         </div>
         """, unsafe_allow_html=True)
         
         # Risultati competizione
-        st.subheader("🏆 Classifica Competizione")
+        st.subheader("ðŸ† Classifica Competizione")
         results_df = self.get_competition_results(competition_id)
         
         if not results_df.empty:
@@ -1256,7 +1256,7 @@ class ACCWebDashboard:
             
             # Aggiungi medaglie
             results_display['Pos'] = results_display['position'].apply(
-                lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(int(x)) if pd.notna(x) else "NC"
+                lambda x: "ðŸ¥‡" if x == 1 else "ðŸ¥ˆ" if x == 2 else "ðŸ¥‰" if x == 3 else str(int(x)) if pd.notna(x) else "NC"
             )
             
             # Formatta tempi giro
@@ -1290,11 +1290,11 @@ class ACCWebDashboard:
                 hide_index=True
             )
         else:
-            st.warning("⚠️ Risultati competizione non ancora calcolati")
+            st.warning("âš ï¸ Risultati competizione non ancora calcolati")
         
         # Sessioni della competizione
         st.markdown("---")
-        st.subheader("🎮 Sessioni della Competizione")
+        st.subheader("ðŸŽ® Sessioni della Competizione")
         
         sessions = self.get_competition_sessions(competition_id)
         
@@ -1310,8 +1310,8 @@ class ACCWebDashboard:
                 # Header sessione
                 st.markdown(f"""
                 <div class="session-header">
-                    <strong>🏁 {session_type}</strong> - {date_str} | 👥 {total_drivers} piloti
-                    {f'| ⚡ Best: {self.format_lap_time(best_lap_overall)}' if best_lap_overall else ''}
+                    <strong>ðŸ {session_type}</strong> - {date_str} | ðŸ‘¥ {total_drivers} piloti
+                    {f'| âš¡ Best: {self.format_lap_time(best_lap_overall)}' if best_lap_overall else ''}
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -1324,7 +1324,7 @@ class ACCWebDashboard:
                     
                     # Aggiungi medaglie per primi 3
                     session_display['Pos'] = session_display['position'].apply(
-                        lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(int(x)) if pd.notna(x) else "NC"
+                        lambda x: "ðŸ¥‡" if x == 1 else "ðŸ¥ˆ" if x == 2 else "ðŸ¥‰" if x == 3 else str(int(x)) if pd.notna(x) else "NC"
                     )
                     
                     # Formatta tempo giro
@@ -1358,11 +1358,11 @@ class ACCWebDashboard:
                         hide_index=True
                     )
                 else:
-                    st.warning(f"⚠️ Nessun risultato trovato per {session_type}")
+                    st.warning(f"âš ï¸ Nessun risultato trovato per {session_type}")
                 
                 st.markdown("<br>", unsafe_allow_html=True)
         else:
-            st.warning("❌ Nessuna sessione trovata per questa competizione")
+            st.warning("âŒ Nessuna sessione trovata per questa competizione")
 
 
 def main():
@@ -1372,61 +1372,61 @@ def main():
         dashboard = ACCWebDashboard()
         
         # Sidebar per navigazione
-        st.sidebar.title("🏁 Navigazione")
+        st.sidebar.title("ðŸ Navigazione")
         
         # Info versione per admin (solo in locale)
         if not dashboard.is_github_deployment:
             st.sidebar.markdown("---")
-            st.sidebar.markdown("**🔧 Modalità Sviluppo**")
+            st.sidebar.markdown("**ðŸ”§ ModalitÃ  Sviluppo**")
             st.sidebar.markdown(f"DB: `{os.path.basename(dashboard.db_path)}`")
         
         # Menu principale
         page = st.sidebar.selectbox(
             "Seleziona pagina:",
             [
-                "🏠 Homepage",
-                "🏆 Report Campionati",
-                "🎮 Report Official 4Fun",
-                "🏁 Report Piste",
-                "👤 Report Piloti",
-                "📊 Statistiche Avanzate"
+                "ðŸ  Homepage",
+                "ðŸ† Report Campionati",
+                "ðŸŽ® Report Official 4Fun",
+                "ðŸ Report Piste",
+                "ðŸ‘¤ Report Piloti",
+                "ðŸ“Š Statistiche Avanzate"
             ]
         )
         
         # Routing pagine
-        if page == "🏠 Homepage":
+        if page == "ðŸ  Homepage":
             dashboard.show_homepage()
         
-        elif page == "🏆 Report Campionati":
+        elif page == "ðŸ† Report Campionati":
             dashboard.show_championships_report()
         
-        elif page == "🎮 Report Official 4Fun":
+        elif page == "ðŸŽ® Report Official 4Fun":
             dashboard.show_4fun_report()
         
-        elif page == "🏁 Report Piste":
-            st.header("🏁 Report Piste")
-            st.info("🚧 Sezione in sviluppo - sarà implementata prossimamente")
+        elif page == "ðŸ Report Piste":
+            st.header("ðŸ Report Piste")
+            st.info("ðŸš§ Sezione in sviluppo - sarÃ  implementata prossimamente")
         
-        elif page == "👤 Report Piloti":
-            st.header("👤 Report Piloti")
-            st.info("🚧 Sezione in sviluppo - sarà implementata prossimamente")
+        elif page == "ðŸ‘¤ Report Piloti":
+            st.header("ðŸ‘¤ Report Piloti")
+            st.info("ðŸš§ Sezione in sviluppo - sarÃ  implementata prossimamente")
         
-        elif page == "📊 Statistiche Avanzate":
-            st.header("📊 Statistiche Avanzate")
-            st.info("🚧 Sezione in sviluppo - sarà implementata prossimamente")
+        elif page == "ðŸ“Š Statistiche Avanzate":
+            st.header("ðŸ“Š Statistiche Avanzate")
+            st.info("ðŸš§ Sezione in sviluppo - sarÃ  implementata prossimamente")
         
         # Footer
         st.sidebar.markdown("---")
         st.sidebar.markdown(f"""
         <div style="text-align: center; color: #666; font-size: 0.8rem;">
-            <p>🏁 ACC Server Dashboard</p>
+            <p>ðŸ ACC Server Dashboard</p>
             <p>Community: {dashboard.config['community']['name']}</p>
-            {f'<p>🌐 Cloud Deployment</p>' if dashboard.is_github_deployment else '<p>🏠 Sviluppo Locale</p>'}
+            {f'<p>ðŸŒ Cloud Deployment</p>' if dashboard.is_github_deployment else '<p>ðŸ  Sviluppo Locale</p>'}
         </div>
         """, unsafe_allow_html=True)
     
     except Exception as e:
-        st.error("❌ **Errore Critico nell'Applicazione**")
+        st.error("âŒ **Errore Critico nell'Applicazione**")
         st.error(f"Dettagli: {str(e)}")
         
         # Informazioni di debug solo in locale
@@ -1434,7 +1434,7 @@ def main():
             st.code(f"Traceback: {e}", language="text")
         
         st.markdown("""
-        ### 🔧 Possibili Soluzioni:
+        ### ðŸ”§ Possibili Soluzioni:
         1. Verifica che il database sia presente e valido
         2. Controlla il file di configurazione
         3. Ricarica la pagina
