@@ -183,8 +183,7 @@ class ACCWebDashboard:
             text-align: center;
             padding: 2rem 0;
             background: linear-gradient(90deg, #1f4e79, #2d5a87);
-            #color: white;
-            color: red;
+            color: white;
             border-radius: 10px;
             margin-bottom: 2rem;
         }
