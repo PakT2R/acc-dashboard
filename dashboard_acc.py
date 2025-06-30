@@ -266,6 +266,12 @@ class ACCWebDashboard:
             text-align: center;
             margin: 1rem 0;
         }
+
+        .social-buttons button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3) !important;
+            transition: all 0.3s ease;
+        }
         
         /* Responsive improvements */
         @media (max-width: 768px) {
@@ -392,15 +398,9 @@ class ACCWebDashboard:
         """Mostra la homepage con statistiche generali"""
         # Indicatore ambiente (solo locale)
         self.show_environment_indicator()
-        
-        # Header principale
-        community_name = self.config['community']['name']
-        st.markdown(f"""
-        <div class="main-header">
-            <h1>🏁 {community_name}</h1>
-            <h3>ACC Server Dashboard</h3>
-        </div>
-        """, unsafe_allow_html=True)
+
+        # Banner Enigma Overdrive - QUESTA È LA RIGA DA AGGIUNGERE
+        self.show_community_banner()
         
         # Info deployment per admin (solo in locale)
         if not self.is_github_deployment:
@@ -1503,8 +1503,8 @@ class ACCWebDashboard:
         final_display = summary_display[columns_to_show].copy()
         final_display.columns = [column_names[col] for col in columns_to_show]
         
-        # Ordina per nome pista (alfabetico)
-        final_display = final_display.sort_values('Pista')
+        # Ordina per data decrescente (più recente prima)
+        final_display = final_display.sort_values('Data', ascending=False)
         
         st.dataframe(
             final_display,
@@ -2204,6 +2204,104 @@ class ACCWebDashboard:
             return date_obj.strftime('%d/%m/%Y')
         except:
             return session_date[:10] if session_date else 'N/A'
+
+    def show_community_banner(self):
+        """Mostra banner community con link social"""
+        try:
+            # Verifica se il banner esiste
+            banner_path = "banner.jpg"
+            if Path(banner_path).exists():
+                # Converti l'immagine in base64 per embedding CSS
+                import base64
+                with open(banner_path, "rb") as img_file:
+                    img_base64 = base64.b64encode(img_file.read()).decode()
+                
+                community_name = self.config['community']['name']
+                
+                # Banner con background image e testo sovrapposto via CSS puro
+                st.markdown(f"""
+                <div style="
+                    background-image: url(data:image/jpeg;base64,{img_base64});
+                    background-size: cover;
+                    background-position: center;
+                    background-repeat: no-repeat;
+                    height: 300px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    text-align: center;
+                    margin: 2rem 0;
+                    border-radius: 15px;
+                    position: relative;
+                ">
+                    <div style="
+                        background: rgba(0,0,0,0.4);
+                        padding: 2rem;
+                        border-radius: 15px;
+                        color: white;
+                    ">
+                        <h1 style="margin: 0; font-size: 3rem; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">🏁 {community_name}</h1>
+                        <h3 style="margin: 0.5rem 0 0 0; font-size: 1.5rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">ACC Server Dashboard</h3>
+                    </div>
+                </div>
+                
+                <style>
+                @media (max-width: 768px) {{
+                    div[data-testid="stMarkdownContainer"] h1 {{
+                        font-size: 2rem !important;
+                    }}
+                    div[data-testid="stMarkdownContainer"] h3 {{
+                        font-size: 1.2rem !important;
+                    }}
+                }}
+                </style>
+                """, unsafe_allow_html=True)
+                
+                # Link social
+                st.markdown("""
+                <div style="text-align: center; margin: 1rem 0;">
+                    <a href="https://www.thesimgrid.com/communities/enigma-overdrive" target="_blank" style="text-decoration: none; margin: 0 1rem;">
+                        <button style="background: linear-gradient(90deg, #ff6b35, #ff8c42); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                            🏆 SimGrid Community
+                        </button>
+                    </a>
+                    <a href="https://discord.gg/HRBkPehkxE" target="_blank" style="text-decoration: none; margin: 0 1rem;">
+                        <button style="background: linear-gradient(90deg, #5865f2, #7289da); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                            💬 Join Discord
+                        </button>
+                    </a>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            else:
+                # Fallback con il riquadro blu originale se non c'è il banner
+                community_name = self.config['community']['name']
+                st.markdown(f"""
+                <div class="main-header">
+                    <h1>🏁 {community_name}</h1>
+                    <h3>ACC Server Dashboard</h3>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Link social
+                st.markdown("""
+                <div style="text-align: center; margin: 1rem 0;">
+                    <a href="https://www.thesimgrid.com/communities/enigma-overdrive" target="_blank" style="text-decoration: none; margin: 0 1rem;">
+                        <button style="background: linear-gradient(90deg, #ff6b35, #ff8c42); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                            🏆 SimGrid Community
+                        </button>
+                    </a>
+                    <a href="https://discord.gg/HRBkPehkxE" target="_blank" style="text-decoration: none; margin: 0 1rem;">
+                        <button style="background: linear-gradient(90deg, #5865f2, #7289da); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                            💬 Join Discord
+                        </button>
+                    </a>
+                </div>
+                """, unsafe_allow_html=True)
+        except Exception as e:
+            # Fallback in caso di errore
+            pass
 
 def main():
     """Funzione principale dell'applicazione"""
