@@ -884,13 +884,13 @@ class ACCWebDashboard:
             
             column_names = {
                 'Pos': 'Pos',
-                'driver': 'Pilota',
-                'qualifying_position': 'Pos Quali',
-                'race_points': 'Punti Gara',
-                'pole_points': 'Punti Pole',
-                'fastest_lap_points': 'Punti GL',
-                'total_points': 'Tot Punti',
-                'Miglior Giro': 'Miglior Giro'
+                'driver': 'Driver',
+                'qualifying_position': 'Quali Pos',
+                'race_points': 'Race Points',
+                'pole_points': 'Pole Points',
+                'fastest_lap_points': 'Fast Lap Points',
+                'total_points': 'Total Points',
+                'Miglior Giro': 'Best Lap'
             }
             
             results_display = results_display[columns_to_show]
@@ -926,7 +926,7 @@ class ACCWebDashboard:
                 # Header sessione
                 st.markdown(f"""
                 <div class="session-header">
-                    <strong>🏁 {session_type}</strong> - {date_str} | 👥 {total_drivers} piloti
+                    <strong>🏁 {session_type}</strong> - {date_str} | 👥 {total_drivers} drivers
                     {f'| ⚡ Best: {self.format_lap_time(best_lap_overall)}' if best_lap_overall else ''}
                 </div>
                 """, unsafe_allow_html=True)
@@ -944,24 +944,24 @@ class ACCWebDashboard:
                     )
                     
                     # Formatta tempo giro
-                    session_display['Miglior Giro'] = session_display['best_lap'].apply(
+                    session_display['Best Lap'] = session_display['best_lap'].apply(
                         lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
                     )
                     
                     # Formatta tempo totale
-                    session_display['Tempo Totale'] = session_display['total_time'].apply(
+                    session_display['Total Time'] = session_display['total_time'].apply(
                         lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
                     )
                     
                     # Seleziona colonne da mostrare
-                    columns_to_show = ['Pos', 'race_number', 'driver', 'lap_count', 'Miglior Giro', 'Tempo Totale']
+                    columns_to_show = ['Pos', 'race_number', 'driver', 'lap_count', 'Best Lap', 'Total Time']
                     column_names = {
                         'Pos': 'Pos',
                         'race_number': 'Num#',
-                        'driver': 'Pilota',
-                        'lap_count': 'Giri',
-                        'Miglior Giro': 'Miglior Giro',
-                        'Tempo Totale': 'Tempo Totale'
+                        'driver': 'Driver',
+                        'lap_count': 'Laps',
+                        'Best Lap': 'Best Lap',
+                        'Total Time': 'Total Time'
                     }
                     
                     session_display = session_display[columns_to_show]
@@ -1139,13 +1139,13 @@ class ACCWebDashboard:
                     # Rinomina colonne
                     column_names = {
                         'Pos': 'Pos',
-                        'driver': 'Pilota',
-                        'total_points': 'Punti',
-                        'competitions_participated': 'Gare',
-                        'wins': 'Vittorie',
-                        'podiums': 'Podi',
-                        'poles': 'Pole',
-                        'fastest_laps': 'Giri Veloci'
+                        'driver': 'Driver',
+                        'total_points': 'Points',
+                        'competitions_participated': 'Races',
+                        'wins': 'Wins',
+                        'podiums': 'Podiums',
+                        'poles': 'Poles',
+                        'fastest_laps': 'Fast Laps'
                     }
                     
                     standings_display = standings_display[columns_to_show]
@@ -1290,13 +1290,13 @@ class ACCWebDashboard:
             
             column_names = {
                 'Pos': 'Pos',
-                'driver': 'Pilota',
-                'qualifying_position': 'Pos Quali',
-                'race_points': 'Punti Gara',
-                'pole_points': 'Punti Pole',
-                'fastest_lap_points': 'Punti GL',
-                'total_points': 'Tot Punti',
-                'Miglior Giro': 'Miglior Giro'
+                'driver': 'Driver',
+                'qualifying_position': 'Quali Pos',
+                'race_points': 'Race Points',
+                'pole_points': 'Pole Points',
+                'fastest_lap_points': 'Fast Lap Points',
+                'total_points': 'Total Points',
+                'Miglior Giro': 'Best Lap'
             }
             
             results_display = results_display[columns_to_show]
@@ -1328,7 +1328,7 @@ class ACCWebDashboard:
                 # Header sessione
                 st.markdown(f"""
                 <div class="session-header">
-                    <strong>🏁 {session_type}</strong> - {date_str} | 👥 {total_drivers} piloti
+                    <strong>🏁 {session_type}</strong> - {date_str} | 👥 {total_drivers} drivers
                     {f'| ⚡ Best: {self.format_lap_time(best_lap_overall)}' if best_lap_overall else ''}
                 </div>
                 """, unsafe_allow_html=True)
@@ -1346,24 +1346,24 @@ class ACCWebDashboard:
                     )
                     
                     # Formatta tempo giro
-                    session_display['Miglior Giro'] = session_display['best_lap'].apply(
+                    session_display['Best Lap'] = session_display['best_lap'].apply(
                         lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
                     )
                     
                     # Formatta tempo totale
-                    session_display['Tempo Totale'] = session_display['total_time'].apply(
+                    session_display['Total Time'] = session_display['total_time'].apply(
                         lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
                     )
                     
                     # Seleziona colonne da mostrare
-                    columns_to_show = ['Pos', 'race_number', 'driver', 'lap_count', 'Miglior Giro', 'Tempo Totale']
+                    columns_to_show = ['Pos', 'race_number', 'driver', 'lap_count', 'Best Lap', 'Total Time']
                     column_names = {
                         'Pos': 'Pos',
                         'race_number': 'Num#',
-                        'driver': 'Pilota',
-                        'lap_count': 'Giri',
-                        'Miglior Giro': 'Miglior Giro',
-                        'Tempo Totale': 'Tempo Totale'
+                        'driver': 'Driver',
+                        'lap_count': 'Laps',
+                        'Best Lap': 'Best Lap',
+                        'Total Time': 'Total Time'
                     }
                     
                     session_display = session_display[columns_to_show]
@@ -1496,11 +1496,11 @@ class ACCWebDashboard:
         # Seleziona colonne finali
         columns_to_show = ['Pista', 'Record', 'driver_name', 'Data', 'Tipo']
         column_names = {
-            'Pista': 'Pista',
+            'Pista': 'Track',
             'Record': 'Record',
-            'driver_name': 'Pilota',
-            'Data': 'Data',
-            'Tipo': 'Tipo Sessione'
+            'driver_name': 'Driver',
+            'Data': 'Date',
+            'Tipo': 'Session Type'
         }
         
         final_display = summary_display[columns_to_show].copy()
@@ -1725,7 +1725,7 @@ class ACCWebDashboard:
             )
             
             # Formatta tempi
-            leaderboard_display['Tempo Migliore'] = leaderboard_display['best_lap'].apply(
+            leaderboard_display['Best Time'] = leaderboard_display['best_lap'].apply(
                 lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
             )
             
@@ -1739,20 +1739,20 @@ class ACCWebDashboard:
                 leaderboard_display['Gap'] = "-"
             
             # Formatta data
-            leaderboard_display['Data Record'] = leaderboard_display['session_date'].apply(
+            leaderboard_display['Record Date'] = leaderboard_display['session_date'].apply(
                 lambda x: self.format_session_date(x) if pd.notna(x) else "N/A"
             )
             
             # Seleziona colonne finali
-            columns_to_show = ['Pos', 'driver_name', 'Tempo Migliore', 'Gap', 'total_laps', 'Data Record', 'session_type']
+            columns_to_show = ['Pos', 'driver_name', 'Best Time', 'Gap', 'total_laps', 'Record Date', 'session_type']
             column_names = {
                 'Pos': 'Pos',
                 'driver_name': 'Pilota',
-                'Tempo Migliore': 'Tempo Migliore',
+                'Best Time': 'Best Time',
                 'Gap': 'Gap',
-                'total_laps': 'Giri Totali',
-                'Data Record': 'Data Record',
-                'session_type': 'Tipo Sessione'
+                'total_laps': 'Total Laps',
+                'Record Date': 'Record Date',
+                'session_type': 'Session Type'
             }
             
             final_display = leaderboard_display[columns_to_show].copy()
@@ -1775,9 +1775,9 @@ class ACCWebDashboard:
                 
                 for idx, row in top_10.iterrows():
                     if idx == 0:  # Leader
-                        gap_analysis.append(f"🥇 **{row['driver_name']}**: {row['Tempo Migliore']} (Leader)")
+                        gap_analysis.append(f"🥇 **{row['driver_name']}**: {row['Best Time']} (Leader)")
                     else:
-                        gap_analysis.append(f"   {row['Pos']}. **{row['driver_name']}**: {row['Tempo Migliore']} ({row['Gap']})")
+                        gap_analysis.append(f"   {row['Pos']}. **{row['driver_name']}**: {row['Best Time']} ({row['Gap']})")
                 
                 for line in gap_analysis:
                     st.markdown(line)
@@ -1918,7 +1918,7 @@ class ACCWebDashboard:
             )
             
             # Formatta tempi
-            leaderboard_display['Tempo Migliore'] = leaderboard_display['best_lap'].apply(
+            leaderboard_display['Best Time'] = leaderboard_display['best_lap'].apply(
                 lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
             )
             
@@ -1932,20 +1932,20 @@ class ACCWebDashboard:
                 leaderboard_display['Gap'] = "-"
             
             # Formatta data
-            leaderboard_display['Data Record'] = leaderboard_display['session_date'].apply(
+            leaderboard_display['Record Date'] = leaderboard_display['session_date'].apply(
                 lambda x: self.format_session_date(x) if pd.notna(x) else "N/A"
             )
             
             # Seleziona colonne finali
-            columns_to_show = ['Pos', 'driver_name', 'Tempo Migliore', 'Gap', 'total_laps', 'Data Record', 'session_type']
+            columns_to_show = ['Pos', 'driver_name', 'Best Time', 'Gap', 'total_laps', 'Record Date', 'session_type']
             column_names = {
                 'Pos': 'Pos',
                 'driver_name': 'Pilota',
-                'Tempo Migliore': 'Tempo Migliore',
+                'Best Time': 'Best Time',
                 'Gap': 'Gap',
-                'total_laps': 'Giri Totali',
-                'Data Record': 'Data Record',
-                'session_type': 'Tipo Sessione'
+                'total_laps': 'Total Laps',
+                'Record Date': 'Record Date',
+                'session_type': 'Session Type'
             }
             
             final_display = leaderboard_display[columns_to_show].copy()
@@ -1968,9 +1968,9 @@ class ACCWebDashboard:
                 
                 for idx, row in top_10.iterrows():
                     if idx == 0:  # Leader
-                        gap_analysis.append(f"🥇 **{row['driver_name']}**: {row['Tempo Migliore']} (Leader)")
+                        gap_analysis.append(f"🥇 **{row['driver_name']}**: {row['Best Time']} (Leader)")
                     else:
-                        gap_analysis.append(f"   {row['Pos']}. **{row['driver_name']}**: {row['Tempo Migliore']} ({row['Gap']})")
+                        gap_analysis.append(f"   {row['Pos']}. **{row['driver_name']}**: {row['Best Time']} ({row['Gap']})")
                 
                 for line in gap_analysis:
                     st.markdown(line)
