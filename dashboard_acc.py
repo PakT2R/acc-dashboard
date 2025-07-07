@@ -10,7 +10,7 @@ import sqlite3
 import json
 import pandas as pd
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from pathlib import Path
 import plotly.express as px
 import plotly.graph_objects as go
