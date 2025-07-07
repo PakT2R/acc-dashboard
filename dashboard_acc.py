@@ -1878,7 +1878,7 @@ class ACCWebDashboard:
             return None
     
     def show_session_charts(self, results_df: pd.DataFrame, session_type: str):
-        """Mostra grafici per la sessione"""
+        """Mostra grafici per la sessione - VERSIONE MIGLIORATA"""
         if results_df.empty or len(results_df) < 4:
             return
         
@@ -1888,36 +1888,81 @@ class ACCWebDashboard:
         col1, col2 = st.columns(2)
         
         with col1:
-            # Grafico gap tempi
-            st.subheader("⏱️ Lap Times Distribution")
+            # GRAFICO MIGLIORATO: Gap Analysis dal vincitore
+            st.subheader("⏱️ Gap Analysis from Winner")
             
             # Top 10 con tempi validi
             valid_times = results_df[
                 (pd.notna(results_df['best_lap'])) & 
-                (results_df['best_lap'] > 0)
+                (results_df['best_lap'] > 0) &
+                (pd.notna(results_df['position'])) &
+                (results_df['position'] > 0)
             ].head(10).copy()
             
             if not valid_times.empty:
-                valid_times['tempo_secondi'] = valid_times['best_lap'] / 1000
-                valid_times = valid_times.sort_values('tempo_secondi', ascending=True)
+                # Ordina per posizione
+                valid_times = valid_times.sort_values('position', ascending=True)
                 
-                fig_times = px.bar(
-                    valid_times,
-                    x='driver',
-                    y='tempo_secondi',
-                    title="Best Lap Times (Top 10)",
-                    color='tempo_secondi',
-                    color_continuous_scale='viridis'
+                # Calcola gap dal vincitore
+                winner_time = valid_times.iloc[0]['best_lap']
+                valid_times['gap_seconds'] = (valid_times['best_lap'] - winner_time) / 1000
+                
+                # Formatta per display
+                valid_times['gap_display'] = valid_times['gap_seconds'].apply(
+                    lambda x: f"+{x:.3f}s" if x > 0 else "Leader"
                 )
-                fig_times.update_xaxes(tickangle=45)
-                fig_times.update_layout(height=400, showlegend=False)
-                fig_times.update_yaxes(title="Time (seconds)")
-                st.plotly_chart(fig_times, use_container_width=True)
+                
+                # Converti tempi in formato MM:SS.sss per tooltip
+                valid_times['lap_time_formatted'] = valid_times['best_lap'].apply(
+                    lambda x: self.format_lap_time(x)
+                )
+                
+                # Crea grafico a barre orizzontale (più leggibile)
+                fig_gap = px.bar(
+                    valid_times,
+                    x='gap_seconds',
+                    y='driver',
+                    orientation='h',
+                    title=f"Gap from Winner - Best Lap Times (Top 10)",
+                    color='gap_seconds',
+                    color_continuous_scale='RdYlGn_r',  # Rosso = più lento, Verde = più veloce
+                    hover_data={
+                        'gap_seconds': False,  # Nascondi gap_seconds nel tooltip
+                        'gap_display': True,   # Mostra gap formattato
+                        'lap_time_formatted': True,  # Mostra tempo giro
+                        'position': True       # Mostra posizione
+                    }
+                )
+                
+                # Personalizza grafico
+                fig_gap.update_layout(
+                    height=400, 
+                    showlegend=False,
+                    xaxis_title="Gap from Winner (seconds)",
+                    yaxis_title="Driver"
+                )
+                
+                # Ordina Y axis per posizione (primo in alto)
+                fig_gap.update_yaxes(autorange="reversed")
+                
+                # Aggiungi linea di riferimento a 0 (vincitore)
+                fig_gap.add_vline(x=0, line_dash="dash", line_color="green", 
+                                 annotation_text="Winner", annotation_position="top")
+                
+                st.plotly_chart(fig_gap, use_container_width=True)
+                
+                # Info aggiuntive sotto il grafico
+                winner_name = valid_times.iloc[0]['driver']
+                winner_time_formatted = valid_times.iloc[0]['lap_time_formatted']
+                max_gap = valid_times['gap_seconds'].max()
+                
+                st.info(f"🏆 **Winner**: {winner_name} ({winner_time_formatted}) | 📊 **Max Gap**: +{max_gap:.3f}s")
+                
             else:
-                st.info("No valid lap times for chart")
+                st.info("No valid lap times for gap analysis")
         
         with col2:
-            # Grafico giri completati
+            # Grafico giri completati (rimane uguale, è già chiaro)
             st.subheader("🔄 Laps Completed")
             
             laps_data = results_df[
@@ -1941,6 +1986,28 @@ class ACCWebDashboard:
                 st.plotly_chart(fig_laps, use_container_width=True)
             else:
                 st.info("No lap count data for chart")
+        
+        # GRAFICO AGGIUNTIVO: Distribuzione tempi (se ci sono molti piloti)
+        if len(valid_times) > 5:
+            st.subheader("📈 Lap Times Distribution")
+            
+            # Istogramma dei tempi giro
+            fig_hist = px.histogram(
+                valid_times,
+                x='gap_seconds',
+                nbins=min(10, len(valid_times)),
+                title="Distribution of Gap Times",
+                labels={'gap_seconds': 'Gap from Winner (seconds)', 'count': 'Number of Drivers'},
+                color_discrete_sequence=['lightblue']
+            )
+            
+            fig_hist.update_layout(
+                height=300,
+                showlegend=False,
+                bargap=0.1
+            )
+            
+            st.plotly_chart(fig_hist, use_container_width=True)
     
     def format_session_datetime(self, session_date: str) -> str:
         """Formatta data e ora sessione per visualizzazione"""
