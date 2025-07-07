@@ -1555,13 +1555,9 @@ class ACCWebDashboard:
         
         with col3:
             st.warning(f"❌ **{unofficial_count}** unofficial sessions")
-    
-    # Rimuovi i metodi vecchi che non servono più:
-    # - prepare_sessions_display()
-    # - show_sessions_table()
-    
+
     def get_sessions_statistics(self, date_from: date, date_to: date) -> Dict:
-        """Ottiene statistiche sessioni per il periodo specificato"""
+        """Ottiene statistiche sessioni per il periodo specificato - VERSIONE CORRETTA"""
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -1570,22 +1566,33 @@ class ACCWebDashboard:
             date_from_str = date_from.strftime('%Y-%m-%d')
             date_to_str = (date_to + timedelta(days=1)).strftime('%Y-%m-%d')  # Include tutto il giorno 'to'
             
-            # Statistiche generali
+            # CORREZIONE: Statistiche sessioni separate dai driver
+            # 1. Statistiche sessioni (senza JOIN con session_results)
             cursor.execute('''
                 SELECT 
                     COUNT(*) as total_sessions,
-                    COUNT(DISTINCT sr.driver_id) as unique_drivers,
-                    COUNT(CASE WHEN s.competition_id IS NOT NULL THEN 1 END) as official_sessions,
-                    COUNT(CASE WHEN s.competition_id IS NULL THEN 1 END) as non_official_sessions
+                    COUNT(CASE WHEN competition_id IS NOT NULL THEN 1 END) as official_sessions,
+                    COUNT(CASE WHEN competition_id IS NULL THEN 1 END) as non_official_sessions
                 FROM sessions s
-                LEFT JOIN session_results sr ON s.session_id = sr.session_id
                 WHERE DATE(s.session_date) >= ? AND DATE(s.session_date) < ?
             ''', (date_from_str, date_to_str))
             
-            result = cursor.fetchone()
-            total_sessions, unique_drivers, official, non_official = result
+            session_result = cursor.fetchone()
+            total_sessions, official, non_official = session_result
             
-            # Circuito con più sessioni
+            # 2. Piloti unici separatamente
+            cursor.execute('''
+                SELECT 
+                    COUNT(DISTINCT sr.driver_id) as unique_drivers
+                FROM sessions s
+                JOIN session_results sr ON s.session_id = sr.session_id
+                WHERE DATE(s.session_date) >= ? AND DATE(s.session_date) < ?
+            ''', (date_from_str, date_to_str))
+            
+            driver_result = cursor.fetchone()
+            unique_drivers = driver_result[0] if driver_result else 0
+            
+            # Circuito con più sessioni (rimane invariato)
             cursor.execute('''
                 SELECT 
                     track_name,
@@ -1601,7 +1608,7 @@ class ACCWebDashboard:
             most_used_track = track_result[0] if track_result else "N/A"
             most_used_count = track_result[1] if track_result else 0
             
-            # Ultima sessione
+            # Ultima sessione (rimane invariato)
             cursor.execute('''
                 SELECT 
                     track_name,
