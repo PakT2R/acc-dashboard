@@ -1423,26 +1423,142 @@ class ACCWebDashboard:
         # STATISTICHE PRINCIPALI
         self.show_sessions_main_stats(sessions_stats)
         
-        # ELENCO SESSIONI
+        # SELEZIONE SESSIONE (STILE BEST LAP REPORT)
         st.markdown("---")
-        st.subheader("📋 Sessions List")
         
+        # Ottieni lista sessioni per selezione
         sessions_list = self.get_sessions_list_with_details(date_from, date_to)
         
         if sessions_list.empty:
             st.warning("⚠️ No sessions found for the selected period")
             return
         
-        # Prepara display sessioni
-        sessions_display = self.prepare_sessions_display(sessions_list)
+        # SELECTBOX SESSIONE (come nel Best Lap Report)
+        session_options = ["📊 General Summary"]
+        session_map = {}
         
-        # Mostra tabella sessioni con callback per selezione
-        selected_session = self.show_sessions_table(sessions_display)
+        # Prepara opzioni ordinate per data/ora decrescente (più recenti prima)
+        sessions_sorted = sessions_list.sort_values('session_date', ascending=False)
         
-        # Se una sessione è selezionata, mostra i dettagli
-        if selected_session:
+        for idx, row in sessions_sorted.iterrows():
+            session_id = row['session_id']
+            track_name = row['track_name']
+            
+            # Formatta data e ora per visualizzazione
+            try:
+                date_obj = datetime.fromisoformat(row['session_date'].replace('Z', '+00:00'))
+                datetime_str = date_obj.strftime('%d/%m/%Y %H:%M')
+            except:
+                datetime_str = row['session_date'][:16] if row['session_date'] else 'N/A'
+            
+            # Status ufficiale/non ufficiale
+            status = "🏆" if pd.notna(row['competition_id']) else "❌"
+            
+            # Formato: session_id - track - datetime - status
+            display_name = f"{session_id} - {track_name} - {datetime_str} {status}"
+            
+            session_options.append(display_name)
+            session_map[display_name] = session_id
+        
+        # Selectbox per selezione sessione
+        selected_session_option = st.selectbox(
+            "🎮 Select Session:",
+            options=session_options,
+            index=0,  # General Summary selezionato di default
+            key="session_select"
+        )
+        
+        # Mostra contenuto basato sulla selezione
+        if selected_session_option == "📊 General Summary":
+            # Mostra riepilogo generale (tabella di tutte le sessioni)
             st.markdown("---")
-            self.show_session_details(selected_session)
+            st.subheader("📋 Sessions List Summary")
+            self.show_sessions_summary_table(sessions_list)
+            
+        elif selected_session_option in session_map:
+            # Mostra dettagli della sessione specifica
+            selected_session_id = session_map[selected_session_option]
+            st.markdown("---")
+            self.show_session_details(selected_session_id)
+    
+    def show_sessions_summary_table(self, sessions_list: pd.DataFrame):
+        """Mostra tabella riassuntiva di tutte le sessioni (General Summary)"""
+        if sessions_list.empty:
+            st.warning("⚠️ No sessions found")
+            return
+        
+        # Prepara display sessioni per tabella riassuntiva
+        display_df = sessions_list.copy()
+        
+        # Nome sessione = session_id
+        display_df['Session'] = display_df['session_id']
+        
+        # Tipo sessione formattato
+        display_df['Type'] = display_df['session_type'].apply(
+            lambda x: self.format_session_type(x) if pd.notna(x) else "N/A"
+        )
+        
+        # Status ufficiale/non ufficiale
+        display_df['Status'] = display_df['competition_id'].apply(
+            lambda x: "🏆 Official" if pd.notna(x) else "❌ Unofficial"
+        )
+        
+        # Data formattata con ora
+        display_df['Date & Time'] = display_df['session_date'].apply(
+            lambda x: self.format_session_datetime(x) if pd.notna(x) else "N/A"
+        )
+        
+        # Winner info formattata
+        display_df['Winner'] = display_df['winner_name'].fillna("N/A")
+        
+        # Winner time formattata
+        display_df['Winner Time'] = display_df['winner_time'].apply(
+            lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
+        )
+        
+        # Seleziona colonne finali per display
+        columns_to_show = ['Session', 'Type', 'Status', 'track_name', 'Date & Time', 'total_drivers', 'Winner', 'Winner Time']
+        column_names = {
+            'Session': 'Session',
+            'Type': 'Type',
+            'Status': 'Status',
+            'track_name': 'Track',
+            'Date & Time': 'Date & Time',
+            'total_drivers': 'Drivers',
+            'Winner': 'Winner',
+            'Winner Time': 'Winner Time'
+        }
+        
+        final_display = display_df[columns_to_show].copy()
+        final_display.columns = [column_names[col] for col in columns_to_show]
+        
+        # Mostra tabella completa
+        st.dataframe(
+            final_display,
+            use_container_width=True,
+            hide_index=True,
+            height=500
+        )
+        
+        # Info riassuntive
+        total_sessions = len(final_display)
+        official_count = len(display_df[pd.notna(display_df['competition_id'])])
+        unofficial_count = total_sessions - official_count
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.info(f"📊 **{total_sessions}** total sessions in period")
+        
+        with col2:
+            st.success(f"🏆 **{official_count}** official sessions")
+        
+        with col3:
+            st.warning(f"❌ **{unofficial_count}** unofficial sessions")
+    
+    # Rimuovi i metodi vecchi che non servono più:
+    # - prepare_sessions_display()
+    # - show_sessions_table()
     
     def get_sessions_statistics(self, date_from: date, date_to: date) -> Dict:
         """Ottiene statistiche sessioni per il periodo specificato"""
@@ -1550,7 +1666,7 @@ class ACCWebDashboard:
             st.markdown(f"""
             <div class="metric-card">
                 <p class="metric-value">{stats['non_official_sessions']}</p>
-                <p class="metric-label">🎯 Practice Sessions</p>
+                <p class="metric-label">❌ Unofficial Sessions</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1639,121 +1755,6 @@ class ACCWebDashboard:
         
         return self.safe_sql_query(query, [date_from_str, date_to_str])
     
-    def prepare_sessions_display(self, sessions_df: pd.DataFrame) -> pd.DataFrame:
-        """Prepara dataframe sessioni per visualizzazione"""
-        if sessions_df.empty:
-            return pd.DataFrame()
-        
-        display_df = sessions_df.copy()
-        
-        # Nome sessione = session_id (MODIFICA 1)
-        display_df['Session Name'] = display_df['session_id']
-        
-        # Tipo sessione formattato
-        display_df['Session Type'] = display_df['session_type'].apply(
-            lambda x: self.format_session_type(x) if pd.notna(x) else "N/A"
-        )
-        
-        # Status ufficiale/non ufficiale (MODIFICA 2)
-        display_df['Status'] = display_df['competition_id'].apply(
-            lambda x: "🏆 Official" if pd.notna(x) else "❌ Unofficial"
-        )
-        
-        # Data formattata
-        display_df['Date'] = display_df['session_date'].apply(
-            lambda x: self.format_session_datetime(x) if pd.notna(x) else "N/A"
-        )
-        
-        # Winner info formattata
-        display_df['Winner'] = display_df['winner_name'].fillna("N/A")
-        
-        # Winner time formattata
-        display_df['Winner Time'] = display_df['winner_time'].apply(
-            lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
-        )
-        
-        # Seleziona colonne per display
-        columns_to_show = [
-            'Session Name', 'Session Type', 'Status', 'track_name', 
-            'Date', 'total_drivers', 'Winner', 'Winner Time'
-        ]
-        
-        column_names = {
-            'Session Name': 'Session Name',
-            'Session Type': 'Type',
-            'Status': 'Status',
-            'track_name': 'Track',
-            'Date': 'Date & Time',
-            'total_drivers': 'Drivers',
-            'Winner': 'Winner',
-            'Winner Time': 'Winner Time'
-        }
-        
-        final_display = display_df[columns_to_show].copy()
-        final_display.columns = [column_names[col] for col in columns_to_show]
-        
-        # Conserva session_id per selezione
-        final_display['session_id'] = display_df['session_id']
-        
-        return final_display
-    
-    def show_sessions_table(self, sessions_display: pd.DataFrame) -> Optional[str]:
-        """Mostra tabella sessioni e gestisce selezione clickabile"""
-        if sessions_display.empty:
-            return None
-        
-        # Rimuovi session_id dalla visualizzazione ma conservalo
-        display_columns = [col for col in sessions_display.columns if col != 'session_id']
-        table_display = sessions_display[display_columns].copy()
-        
-        # Mostra tabella
-        st.dataframe(
-            table_display,
-            use_container_width=True,
-            hide_index=True,
-            height=400
-        )
-        
-        # NUOVO: Selezione clickabile tramite radio button orizzontale
-        st.markdown("#### 🔍 Select Session for Details:")
-        st.markdown("*Click on a session to view details*")
-        
-        # Prepara opzioni per radio con session_id come label
-        session_options = []
-        session_map = {}
-        
-        for idx, row in sessions_display.iterrows():
-            session_id = row['session_id']
-            # Formato: session_id - track (date)
-            display_label = f"{session_id} - {row['Track']} ({row['Date & Time'][:10]})"
-            session_options.append(display_label)
-            session_map[display_label] = session_id
-        
-        # Radio button per selezione (più user-friendly di selectbox)
-        if len(session_options) > 0:
-            # Usa columns per rendere più compatto se ci sono molte sessioni
-            if len(session_options) <= 5:
-                # Poche sessioni: radio verticale
-                selected_option = st.radio(
-                    "Choose session:",
-                    options=["None"] + session_options,
-                    index=0,
-                    key="session_detail_radio"
-                )
-            else:
-                # Molte sessioni: selectbox compatto
-                selected_option = st.selectbox(
-                    "Choose session:",
-                    options=["Select a session..."] + session_options,
-                    index=0,
-                    key="session_detail_select_compact"
-                )
-        
-            if selected_option and selected_option not in ["None", "Select a session..."]:
-                return session_map[selected_option]
-        
-        return None
-    
     def show_session_details(self, session_id: str):
         """Mostra dettagli completi della sessione selezionata (come nel 4Fun report)"""
         # Ottieni info sessione
@@ -1779,7 +1780,7 @@ class ACCWebDashboard:
             header_title = f"🏆 {round_str}{competition_name} - {session_type}"
             header_class = "competition-header"
         else:
-            header_title = f"🎯 Practice Session - {session_type}"
+            header_title = f"❌ Unofficial Session - {session_type}"
             header_class = "fun-header"
         
         st.markdown(f"""
