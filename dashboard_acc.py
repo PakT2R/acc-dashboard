@@ -10,7 +10,7 @@ import sqlite3
 import json
 import pandas as pd
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import plotly.express as px
 import plotly.graph_objects as go
@@ -1381,6 +1381,555 @@ class ACCWebDashboard:
                 st.markdown("<br>", unsafe_allow_html=True)
         else:
             st.warning("❌ No sessions found for this competition")
+            
+    def show_sessions_report(self):
+        """Mostra il report Sessions con filtri e statistiche"""
+        st.header("🎮 Sessions Report")
+        
+        # Calcola date di default (ultima settimana)
+        today = datetime.now().date()
+        week_ago = today - timedelta(days=7)
+        
+        # Filtri data in colonne
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            date_from = st.date_input(
+                "📅 From Date:",
+                value=week_ago,
+                key="sessions_date_from"
+            )
+        
+        with col2:
+            date_to = st.date_input(
+                "📅 To Date:",
+                value=today,
+                key="sessions_date_to"
+            )
+        
+        # Validazione date
+        if date_from > date_to:
+            st.error("❌ 'From Date' must be before or equal to 'To Date'")
+            return
+        
+        # Ottieni statistiche per il periodo selezionato
+        st.markdown("---")
+        sessions_stats = self.get_sessions_statistics(date_from, date_to)
+        
+        if not any(sessions_stats.values()):
+            st.warning(f"⚠️ No sessions found in the selected period ({date_from} - {date_to})")
+            return
+        
+        # STATISTICHE PRINCIPALI
+        self.show_sessions_main_stats(sessions_stats)
+        
+        # ELENCO SESSIONI
+        st.markdown("---")
+        st.subheader("📋 Sessions List")
+        
+        sessions_list = self.get_sessions_list_with_details(date_from, date_to)
+        
+        if sessions_list.empty:
+            st.warning("⚠️ No sessions found for the selected period")
+            return
+        
+        # Prepara display sessioni
+        sessions_display = self.prepare_sessions_display(sessions_list)
+        
+        # Mostra tabella sessioni con callback per selezione
+        selected_session = self.show_sessions_table(sessions_display)
+        
+        # Se una sessione è selezionata, mostra i dettagli
+        if selected_session:
+            st.markdown("---")
+            self.show_session_details(selected_session)
+    
+    def get_sessions_statistics(self, date_from: date, date_to: date) -> Dict:
+        """Ottiene statistiche sessioni per il periodo specificato"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Converti date in string per query SQL
+            date_from_str = date_from.strftime('%Y-%m-%d')
+            date_to_str = (date_to + timedelta(days=1)).strftime('%Y-%m-%d')  # Include tutto il giorno 'to'
+            
+            # Statistiche generali
+            cursor.execute('''
+                SELECT 
+                    COUNT(*) as total_sessions,
+                    COUNT(DISTINCT sr.driver_id) as unique_drivers,
+                    COUNT(CASE WHEN s.competition_id IS NOT NULL THEN 1 END) as official_sessions,
+                    COUNT(CASE WHEN s.competition_id IS NULL THEN 1 END) as non_official_sessions
+                FROM sessions s
+                LEFT JOIN session_results sr ON s.session_id = sr.session_id
+                WHERE DATE(s.session_date) >= ? AND DATE(s.session_date) < ?
+            ''', (date_from_str, date_to_str))
+            
+            result = cursor.fetchone()
+            total_sessions, unique_drivers, official, non_official = result
+            
+            # Circuito con più sessioni
+            cursor.execute('''
+                SELECT 
+                    track_name,
+                    COUNT(*) as session_count
+                FROM sessions s
+                WHERE DATE(s.session_date) >= ? AND DATE(s.session_date) < ?
+                GROUP BY track_name
+                ORDER BY session_count DESC
+                LIMIT 1
+            ''', (date_from_str, date_to_str))
+            
+            track_result = cursor.fetchone()
+            most_used_track = track_result[0] if track_result else "N/A"
+            most_used_count = track_result[1] if track_result else 0
+            
+            # Ultima sessione
+            cursor.execute('''
+                SELECT 
+                    track_name,
+                    session_date,
+                    session_type
+                FROM sessions s
+                WHERE DATE(s.session_date) >= ? AND DATE(s.session_date) < ?
+                ORDER BY s.session_date DESC
+                LIMIT 1
+            ''', (date_from_str, date_to_str))
+            
+            last_result = cursor.fetchone()
+            
+            conn.close()
+            
+            return {
+                'total_sessions': total_sessions or 0,
+                'unique_drivers': unique_drivers or 0,
+                'official_sessions': official or 0,
+                'non_official_sessions': non_official or 0,
+                'most_used_track': most_used_track,
+                'most_used_count': most_used_count,
+                'last_session_track': last_result[0] if last_result else "N/A",
+                'last_session_date': last_result[1] if last_result else None,
+                'last_session_type': last_result[2] if last_result else "N/A"
+            }
+            
+        except Exception as e:
+            st.error(f"❌ Error retrieving sessions statistics: {e}")
+            return {}
+    
+    def show_sessions_main_stats(self, stats: Dict):
+        """Mostra statistiche principali delle sessioni"""
+        # Prima riga di metriche
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value">{stats['total_sessions']}</p>
+                <p class="metric-label">🎮 Total Sessions</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value">{stats['unique_drivers']}</p>
+                <p class="metric-label">👥 Unique Drivers</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value">{stats['official_sessions']}</p>
+                <p class="metric-label">🏆 Official Sessions</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value">{stats['non_official_sessions']}</p>
+                <p class="metric-label">🎯 Practice Sessions</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Seconda riga di metriche
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value" style="font-size: 1.5rem;">{stats['most_used_track']}</p>
+                <p class="metric-label">🏁 Most Used Track</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value">{stats['most_used_count']}</p>
+                <p class="metric-label">📊 Sessions on Track</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            # Ultima sessione - circuito
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value" style="font-size: 1.5rem;">{stats['last_session_track']}</p>
+                <p class="metric-label">📍 Last Session Track</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            # Ultima sessione - data e ora
+            if stats['last_session_date']:
+                try:
+                    last_date = datetime.fromisoformat(stats['last_session_date'].replace('Z', '+00:00'))
+                    date_str = last_date.strftime('%d/%m %H:%M')
+                except:
+                    date_str = stats['last_session_date'][:16] if stats['last_session_date'] else "N/A"
+            else:
+                date_str = "N/A"
+            
+            st.markdown(f"""
+            <div class="metric-card">
+                <p class="metric-value" style="font-size: 1.3rem;">{date_str}</p>
+                <p class="metric-label">📅 Last Session Date</p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    def get_sessions_list_with_details(self, date_from: date, date_to: date) -> pd.DataFrame:
+        """Ottiene lista sessioni con dettagli per il periodo specificato"""
+        date_from_str = date_from.strftime('%Y-%m-%d')
+        date_to_str = (date_to + timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        query = '''
+            SELECT 
+                s.session_id,
+                s.session_type,
+                s.track_name,
+                s.session_date,
+                s.total_drivers,
+                s.competition_id,
+                s.is_official,
+                -- Winner info (posizione 1)
+                winner.driver_name as winner_name,
+                winner.total_time as winner_time,
+                winner.best_lap as winner_best_lap,
+                -- Competition info se disponibile
+                c.name as competition_name,
+                c.round_number
+            FROM sessions s
+            LEFT JOIN (
+                SELECT 
+                    sr.session_id,
+                    d.last_name as driver_name,
+                    sr.total_time,
+                    sr.best_lap
+                FROM session_results sr
+                JOIN drivers d ON sr.driver_id = d.driver_id
+                WHERE sr.position = 1
+            ) winner ON s.session_id = winner.session_id
+            LEFT JOIN competitions c ON s.competition_id = c.competition_id
+            WHERE DATE(s.session_date) >= ? AND DATE(s.session_date) < ?
+            ORDER BY s.session_date DESC
+        '''
+        
+        return self.safe_sql_query(query, [date_from_str, date_to_str])
+    
+    def prepare_sessions_display(self, sessions_df: pd.DataFrame) -> pd.DataFrame:
+        """Prepara dataframe sessioni per visualizzazione"""
+        if sessions_df.empty:
+            return pd.DataFrame()
+        
+        display_df = sessions_df.copy()
+        
+        # Nome sessione (include competizione se disponibile)
+        display_df['Session Name'] = display_df.apply(
+            lambda row: f"{row['competition_name']} - {row['session_type']}" 
+            if pd.notna(row['competition_name']) 
+            else row['session_type'], 
+            axis=1
+        )
+        
+        # Tipo sessione formattato
+        display_df['Session Type'] = display_df['session_type'].apply(
+            lambda x: self.format_session_type(x) if pd.notna(x) else "N/A"
+        )
+        
+        # Status ufficiale/non ufficiale
+        display_df['Status'] = display_df['competition_id'].apply(
+            lambda x: "🏆 Official" if pd.notna(x) else "🎯 Practice"
+        )
+        
+        # Data formattata
+        display_df['Date'] = display_df['session_date'].apply(
+            lambda x: self.format_session_datetime(x) if pd.notna(x) else "N/A"
+        )
+        
+        # Winner info formattata
+        display_df['Winner'] = display_df['winner_name'].fillna("N/A")
+        
+        # Winner time formattata
+        display_df['Winner Time'] = display_df['winner_time'].apply(
+            lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
+        )
+        
+        # Seleziona colonne per display
+        columns_to_show = [
+            'Session Name', 'Session Type', 'Status', 'track_name', 
+            'Date', 'total_drivers', 'Winner', 'Winner Time'
+        ]
+        
+        column_names = {
+            'Session Name': 'Session Name',
+            'Session Type': 'Type',
+            'Status': 'Status',
+            'track_name': 'Track',
+            'Date': 'Date & Time',
+            'total_drivers': 'Drivers',
+            'Winner': 'Winner',
+            'Winner Time': 'Winner Time'
+        }
+        
+        final_display = display_df[columns_to_show].copy()
+        final_display.columns = [column_names[col] for col in columns_to_show]
+        
+        # Conserva session_id per selezione
+        final_display['session_id'] = display_df['session_id']
+        
+        return final_display
+    
+    def show_sessions_table(self, sessions_display: pd.DataFrame) -> Optional[str]:
+        """Mostra tabella sessioni e gestisce selezione"""
+        if sessions_display.empty:
+            return None
+        
+        # Rimuovi session_id dalla visualizzazione ma conservalo
+        display_columns = [col for col in sessions_display.columns if col != 'session_id']
+        table_display = sessions_display[display_columns].copy()
+        
+        # Mostra tabella
+        st.dataframe(
+            table_display,
+            use_container_width=True,
+            hide_index=True,
+            height=400
+        )
+        
+        # Selectbox per selezione sessione
+        st.markdown("#### 🔍 Select Session for Details:")
+        
+        # Prepara opzioni per selectbox
+        session_options = ["Select a session..."]
+        session_map = {}
+        
+        for idx, row in sessions_display.iterrows():
+            option_text = f"{row['Session Name']} - {row['Track']} ({row['Date & Time']})"
+            session_options.append(option_text)
+            session_map[option_text] = row['session_id']
+        
+        selected_option = st.selectbox(
+            "Choose session:",
+            options=session_options,
+            index=0,
+            key="session_detail_select"
+        )
+        
+        if selected_option and selected_option != "Select a session...":
+            return session_map[selected_option]
+        
+        return None
+    
+    def show_session_details(self, session_id: str):
+        """Mostra dettagli completi della sessione selezionata (come nel 4Fun report)"""
+        # Ottieni info sessione
+        session_info = self.get_session_info(session_id)
+        
+        if not session_info:
+            st.error("❌ Session not found")
+            return
+        
+        # Header sessione
+        session_type, track_name, session_date, total_drivers, competition_id, competition_name, round_number = session_info
+        
+        # Formatta data
+        try:
+            date_obj = datetime.fromisoformat(session_date.replace('Z', '+00:00'))
+            date_str = date_obj.strftime('%d/%m/%Y %H:%M')
+        except:
+            date_str = session_date[:16] if session_date else 'N/A'
+        
+        # Titolo con info competizione se disponibile
+        if competition_name:
+            round_str = f"Round {round_number} - " if round_number else ""
+            header_title = f"🏆 {round_str}{competition_name} - {session_type}"
+            header_class = "competition-header"
+        else:
+            header_title = f"🎯 Practice Session - {session_type}"
+            header_class = "fun-header"
+        
+        st.markdown(f"""
+        <div class="{header_class}">
+            <h3>{header_title}</h3>
+            <p>📍 {track_name} | 📅 {date_str} | 👥 {total_drivers} drivers</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Risultati sessione (stesso stile del 4Fun report)
+        st.subheader("🏁 Session Results")
+        session_results_df = self.get_session_results(session_id)
+        
+        if not session_results_df.empty:
+            # Formatta risultati sessione (stesso codice del 4Fun)
+            session_display = session_results_df.copy()
+            
+            # Aggiungi medaglie per primi 3
+            session_display['Pos'] = session_display['position'].apply(
+                lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(int(x)) if pd.notna(x) else "NC"
+            )
+            
+            # Formatta tempo giro
+            session_display['Best Lap'] = session_display['best_lap'].apply(
+                lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
+            )
+            
+            # Formatta tempo totale
+            session_display['Total Time'] = session_display['total_time'].apply(
+                lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
+            )
+            
+            # Seleziona colonne da mostrare
+            columns_to_show = ['Pos', 'race_number', 'driver', 'lap_count', 'Best Lap', 'Total Time']
+            column_names = {
+                'Pos': 'Pos',
+                'race_number': 'Num#',
+                'driver': 'Driver',
+                'lap_count': 'Laps',
+                'Best Lap': 'Best Lap',
+                'Total Time': 'Total Time'
+            }
+            
+            session_display = session_display[columns_to_show]
+            session_display.columns = [column_names[col] for col in columns_to_show]
+            
+            # Mostra tutti i risultati
+            st.dataframe(
+                session_display,
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # Grafici se ci sono abbastanza dati
+            if len(session_results_df) > 3:
+                self.show_session_charts(session_results_df, session_type)
+                
+        else:
+            st.warning(f"⚠️ No results found for this session")
+    
+    def get_session_info(self, session_id: str) -> Optional[Tuple]:
+        """Ottiene informazioni base della sessione"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT 
+                    s.session_type,
+                    s.track_name,
+                    s.session_date,
+                    s.total_drivers,
+                    s.competition_id,
+                    c.name as competition_name,
+                    c.round_number
+                FROM sessions s
+                LEFT JOIN competitions c ON s.competition_id = c.competition_id
+                WHERE s.session_id = ?
+            ''', (session_id,))
+            
+            result = cursor.fetchone()
+            conn.close()
+            
+            return result
+            
+        except Exception as e:
+            st.error(f"❌ Error retrieving session info: {e}")
+            return None
+    
+    def show_session_charts(self, results_df: pd.DataFrame, session_type: str):
+        """Mostra grafici per la sessione"""
+        if results_df.empty or len(results_df) < 4:
+            return
+        
+        st.markdown("---")
+        st.subheader("📊 Session Analysis")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Grafico gap tempi
+            st.subheader("⏱️ Lap Times Distribution")
+            
+            # Top 10 con tempi validi
+            valid_times = results_df[
+                (pd.notna(results_df['best_lap'])) & 
+                (results_df['best_lap'] > 0)
+            ].head(10).copy()
+            
+            if not valid_times.empty:
+                valid_times['tempo_secondi'] = valid_times['best_lap'] / 1000
+                valid_times = valid_times.sort_values('tempo_secondi', ascending=True)
+                
+                fig_times = px.bar(
+                    valid_times,
+                    x='driver',
+                    y='tempo_secondi',
+                    title="Best Lap Times (Top 10)",
+                    color='tempo_secondi',
+                    color_continuous_scale='viridis'
+                )
+                fig_times.update_xaxes(tickangle=45)
+                fig_times.update_layout(height=400, showlegend=False)
+                fig_times.update_yaxes(title="Time (seconds)")
+                st.plotly_chart(fig_times, use_container_width=True)
+            else:
+                st.info("No valid lap times for chart")
+        
+        with col2:
+            # Grafico giri completati
+            st.subheader("🔄 Laps Completed")
+            
+            laps_data = results_df[
+                (pd.notna(results_df['lap_count'])) & 
+                (results_df['lap_count'] > 0)
+            ].copy()
+            
+            if not laps_data.empty:
+                laps_data = laps_data.sort_values('lap_count', ascending=True)
+                
+                fig_laps = px.bar(
+                    laps_data,
+                    x='lap_count',
+                    y='driver',
+                    orientation='h',
+                    title="Laps Completed by Driver",
+                    color='lap_count',
+                    color_continuous_scale='greens'
+                )
+                fig_laps.update_layout(height=400, showlegend=False)
+                st.plotly_chart(fig_laps, use_container_width=True)
+            else:
+                st.info("No lap count data for chart")
+    
+    def format_session_datetime(self, session_date: str) -> str:
+        """Formatta data e ora sessione per visualizzazione"""
+        try:
+            date_obj = datetime.fromisoformat(session_date.replace('Z', '+00:00'))
+            return date_obj.strftime('%d/%m/%Y %H:%M')
+        except:
+            return session_date[:16] if session_date else 'N/A'
 
     def show_best_laps_report(self):
         """Mostra il report Best Laps per pista"""
@@ -1428,22 +1977,6 @@ class ACCWebDashboard:
             # Mostra dettagli della pista specifica
             st.markdown("---")
             self.show_track_details(selected_track, official_only)
-    
-    def get_tracks_list(self) -> List[str]:
-        """Ottiene lista piste disponibili nel database"""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            cursor.execute('SELECT DISTINCT track_name FROM sessions ORDER BY track_name')
-            tracks = [row[0] for row in cursor.fetchall()]
-            
-            conn.close()
-            return tracks
-            
-        except Exception as e:
-            st.error(f"❌ Errore nel recupero piste: {e}")
-            return []
     
     def get_tracks_list(self) -> List[str]:
         """Ottiene lista piste disponibili nel database"""
@@ -2326,6 +2859,7 @@ def main():
                 "🏆 Championships Report",
                 "🎮 Official 4Fun Report",
                 "🏁 Best Lap Report",
+                "🎮 Sessions Report",
                 "👤 Drivers Report",
                 "📊 Advanced Statistics"
             ]
@@ -2343,7 +2877,10 @@ def main():
         
         elif page == "🏁 Best Lap Report":
             dashboard.show_best_laps_report()
-        
+
+        elif page == "🎮 Sessions Report":
+            dashboard.show_sessions_report()
+
         elif page == "👤 Drivers Report":
             st.header("👤 Drivers Report")
             st.info("🚧 Section under development - will be implemented soon")
