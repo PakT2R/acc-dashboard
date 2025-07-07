@@ -1646,22 +1646,17 @@ class ACCWebDashboard:
         
         display_df = sessions_df.copy()
         
-        # Nome sessione (include competizione se disponibile)
-        display_df['Session Name'] = display_df.apply(
-            lambda row: f"{row['competition_name']} - {row['session_type']}" 
-            if pd.notna(row['competition_name']) 
-            else row['session_type'], 
-            axis=1
-        )
+        # Nome sessione = session_id (MODIFICA 1)
+        display_df['Session Name'] = display_df['session_id']
         
         # Tipo sessione formattato
         display_df['Session Type'] = display_df['session_type'].apply(
             lambda x: self.format_session_type(x) if pd.notna(x) else "N/A"
         )
         
-        # Status ufficiale/non ufficiale
+        # Status ufficiale/non ufficiale (MODIFICA 2)
         display_df['Status'] = display_df['competition_id'].apply(
-            lambda x: "🏆 Official" if pd.notna(x) else "🎯 Practice"
+            lambda x: "🏆 Official" if pd.notna(x) else "❌ Unofficial"
         )
         
         # Data formattata
@@ -1703,7 +1698,7 @@ class ACCWebDashboard:
         return final_display
     
     def show_sessions_table(self, sessions_display: pd.DataFrame) -> Optional[str]:
-        """Mostra tabella sessioni e gestisce selezione"""
+        """Mostra tabella sessioni e gestisce selezione clickabile"""
         if sessions_display.empty:
             return None
         
@@ -1719,27 +1714,43 @@ class ACCWebDashboard:
             height=400
         )
         
-        # Selectbox per selezione sessione
+        # NUOVO: Selezione clickabile tramite radio button orizzontale
         st.markdown("#### 🔍 Select Session for Details:")
+        st.markdown("*Click on a session to view details*")
         
-        # Prepara opzioni per selectbox
-        session_options = ["Select a session..."]
+        # Prepara opzioni per radio con session_id come label
+        session_options = []
         session_map = {}
         
         for idx, row in sessions_display.iterrows():
-            option_text = f"{row['Session Name']} - {row['Track']} ({row['Date & Time']})"
-            session_options.append(option_text)
-            session_map[option_text] = row['session_id']
+            session_id = row['session_id']
+            # Formato: session_id - track (date)
+            display_label = f"{session_id} - {row['Track']} ({row['Date & Time'][:10]})"
+            session_options.append(display_label)
+            session_map[display_label] = session_id
         
-        selected_option = st.selectbox(
-            "Choose session:",
-            options=session_options,
-            index=0,
-            key="session_detail_select"
-        )
+        # Radio button per selezione (più user-friendly di selectbox)
+        if len(session_options) > 0:
+            # Usa columns per rendere più compatto se ci sono molte sessioni
+            if len(session_options) <= 5:
+                # Poche sessioni: radio verticale
+                selected_option = st.radio(
+                    "Choose session:",
+                    options=["None"] + session_options,
+                    index=0,
+                    key="session_detail_radio"
+                )
+            else:
+                # Molte sessioni: selectbox compatto
+                selected_option = st.selectbox(
+                    "Choose session:",
+                    options=["Select a session..."] + session_options,
+                    index=0,
+                    key="session_detail_select_compact"
+                )
         
-        if selected_option and selected_option != "Select a session...":
-            return session_map[selected_option]
+            if selected_option and selected_option not in ["None", "Select a session..."]:
+                return session_map[selected_option]
         
         return None
     
