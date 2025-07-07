@@ -1891,15 +1891,22 @@ class ACCWebDashboard:
             # GRAFICO MIGLIORATO: Gap Analysis dal vincitore
             st.subheader("⏱️ Gap Analysis from Winner")
             
-            # Top 10 con tempi validi
+            # FILTRO MIGLIORATO: Escludi piloti senza giro valido
             valid_times = results_df[
                 (pd.notna(results_df['best_lap'])) & 
                 (results_df['best_lap'] > 0) &
                 (pd.notna(results_df['position'])) &
-                (results_df['position'] > 0)
+                (results_df['position'] > 0) &
+                # Escludi tempi anomali (troppo veloci o troppo lenti)
+                (results_df['best_lap'] >= 30000) &  # Almeno 30 secondi
+                (results_df['best_lap'] <= 600000)   # Massimo 10 minuti
             ].head(10).copy()
             
             if not valid_times.empty:
+                # Verifica che ci sia almeno un giro valido
+                if len(valid_times) == 0:
+                    st.info("⚠️ No drivers with valid lap times found")
+                    return
                 # Ordina per posizione
                 valid_times = valid_times.sort_values('position', ascending=True)
                 
@@ -1955,11 +1962,12 @@ class ACCWebDashboard:
                 winner_name = valid_times.iloc[0]['driver']
                 winner_time_formatted = valid_times.iloc[0]['lap_time_formatted']
                 max_gap = valid_times['gap_seconds'].max()
+                total_valid_drivers = len(valid_times)
                 
-                st.info(f"🏆 **Winner**: {winner_name} ({winner_time_formatted}) | 📊 **Max Gap**: +{max_gap:.3f}s")
+                st.info(f"🏆 **Winner**: {winner_name} ({winner_time_formatted}) | 📊 **Max Gap**: +{max_gap:.3f}s | 👥 **Valid Times**: {total_valid_drivers} drivers")
                 
             else:
-                st.info("No valid lap times for gap analysis")
+                st.warning("❌ No drivers with valid lap times found for gap analysis")
         
         with col2:
             # Grafico giri completati (rimane uguale, è già chiaro)
