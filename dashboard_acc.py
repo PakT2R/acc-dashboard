@@ -608,8 +608,9 @@ class ACCWebDashboard:
                     description
                 FROM championships 
                 ORDER BY 
-                    CASE WHEN start_date IS NULL THEN 1 ELSE 0 END,
-                    start_date DESC,
+                    is_completed ASC,
+                    CASE WHEN end_date IS NULL THEN 1 ELSE 0 END,
+                    end_date DESC,
                     championship_id DESC
             """)
             
@@ -665,8 +666,10 @@ class ACCWebDashboard:
                 FROM competitions
                 WHERE championship_id = ?
                 ORDER BY 
+                    is_completed DESC,
                     CASE WHEN date_start IS NULL THEN 1 ELSE 0 END,
-                    date_start DESC,
+                    CASE WHEN is_completed = 1 THEN date_start END DESC,
+                    CASE WHEN is_completed = 0 THEN date_start END ASC,
                     round_number DESC
             """, (championship_id,))
             
@@ -2885,21 +2888,25 @@ class ACCWebDashboard:
                 </style>
                 """, unsafe_allow_html=True)
                 
-                # Link social
-                st.markdown("""
-                <div style="text-align: center; margin: 1rem 0;">
-                    <a href="https://www.thesimgrid.com/communities/enigma-overdrive" target="_blank" style="text-decoration: none; margin: 0 1rem;">
-                        <button style="background: linear-gradient(90deg, #ff6b35, #ff8c42); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
-                            🏆 SimGrid Community
-                        </button>
-                    </a>
-                    <a href="https://discord.gg/HRBkPehkxE" target="_blank" style="text-decoration: none; margin: 0 1rem;">
-                        <button style="background: linear-gradient(90deg, #5865f2, #7289da); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
-                            💬 Join Discord
-                        </button>
-                    </a>
-                </div>
-                """, unsafe_allow_html=True)
+                # Link social (solo se configurati)
+                social_config = self.config.get('social', {})
+                discord_url = social_config.get('discord')
+                simgrid_url = social_config.get('simgrid')
+                
+                if discord_url or simgrid_url:
+                    social_buttons = []
+                    
+                    if simgrid_url:
+                        social_buttons.append(f'<a href="{simgrid_url}" target="_blank" style="text-decoration: none; margin: 0 1rem;"><button style="background: linear-gradient(90deg, #ff6b35, #ff8c42); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">🏆 SimGrid Community</button></a>')
+                    
+                    if discord_url:
+                        social_buttons.append(f'<a href="{discord_url}" target="_blank" style="text-decoration: none; margin: 0 1rem;"><button style="background: linear-gradient(90deg, #5865f2, #7289da); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">💬 Join Discord</button></a>')
+                    
+                    st.markdown(f"""
+                    <div style="text-align: center; margin: 1rem 0;">
+                        {''.join(social_buttons)}
+                    </div>
+                    """, unsafe_allow_html=True)
                 
             else:
                 # Fallback con il riquadro blu originale se non c'è il banner
@@ -2911,21 +2918,25 @@ class ACCWebDashboard:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Link social
-                st.markdown("""
-                <div style="text-align: center; margin: 1rem 0;">
-                    <a href="https://www.thesimgrid.com/communities/enigma-overdrive" target="_blank" style="text-decoration: none; margin: 0 1rem;">
-                        <button style="background: linear-gradient(90deg, #ff6b35, #ff8c42); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
-                            🏆 SimGrid Community
-                        </button>
-                    </a>
-                    <a href="https://discord.gg/HRBkPehkxE" target="_blank" style="text-decoration: none; margin: 0 1rem;">
-                        <button style="background: linear-gradient(90deg, #5865f2, #7289da); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
-                            💬 Join Discord
-                        </button>
-                    </a>
-                </div>
-                """, unsafe_allow_html=True)
+                # Link social (solo se configurati)
+                social_config = self.config.get('social', {})
+                discord_url = social_config.get('discord')
+                simgrid_url = social_config.get('simgrid')
+                
+                if discord_url or simgrid_url:
+                    social_buttons = []
+                    
+                    if simgrid_url:
+                        social_buttons.append(f'<a href="{simgrid_url}" target="_blank" style="text-decoration: none; margin: 0 1rem;"><button style="background: linear-gradient(90deg, #ff6b35, #ff8c42); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">🏆 SimGrid Community</button></a>')
+                    
+                    if discord_url:
+                        social_buttons.append(f'<a href="{discord_url}" target="_blank" style="text-decoration: none; margin: 0 1rem;"><button style="background: linear-gradient(90deg, #5865f2, #7289da); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">💬 Join Discord</button></a>')
+                    
+                    st.markdown(f"""
+                    <div style="text-align: center; margin: 1rem 0;">
+                        {''.join(social_buttons)}
+                    </div>
+                    """, unsafe_allow_html=True)
         except Exception as e:
             # Fallback in caso di errore
             pass
