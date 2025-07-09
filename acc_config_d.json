@@ -3,6 +3,10 @@
         "name": "[E?]nigma Overdrive",
         "description": "if you see this please edit it in acc_config.json"
     },
+	"social": {
+        "discord": "https://discord.gg/HRBkPehkxE",
+        "simgrid": "https://www.thesimgrid.com/communities/enigma-overdrive"
+    },
     "database": {
         "path": "acc_stats.db"
     }
