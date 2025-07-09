@@ -692,7 +692,23 @@ class ACCWebDashboard:
                 cr.fastest_lap_points,
                 cr.bonus_points,
                 cr.penalty_points,
-                cr.total_points
+                cr.total_points,
+                -- Posizione in qualifica (dalle session results)
+                (SELECT csr.position 
+                 FROM competition_session_results csr 
+                 WHERE csr.competition_id = cr.competition_id 
+                 AND csr.driver_id = cr.driver_id 
+                 AND csr.session_type LIKE '%Q%' 
+                 ORDER BY csr.session_type DESC 
+                 LIMIT 1) as qualifying_position,
+                -- Posizione in gara (dalle session results)
+                (SELECT csr.position 
+                 FROM competition_session_results csr 
+                 WHERE csr.competition_id = cr.competition_id 
+                 AND csr.driver_id = cr.driver_id 
+                 AND csr.session_type LIKE '%R%' 
+                 ORDER BY csr.session_type DESC 
+                 LIMIT 1) as position
             FROM competition_results cr
             JOIN drivers d ON cr.driver_id = d.driver_id
             WHERE cr.competition_id = ?
@@ -975,7 +991,7 @@ class ACCWebDashboard:
             st.warning("❌ No sessions found for this 4Fun competition")
     
     def show_4fun_charts(self, results_df: pd.DataFrame):
-        """Mostra grafici specifici per competizioni 4Fun"""
+        """Shows specific charts for 4Fun competitions"""
         if results_df.empty:
             return
         
@@ -984,10 +1000,10 @@ class ACCWebDashboard:
         with col1:
             st.subheader("📊 4Fun Points Distribution")
             
-            # Grafico punti totali (solo chi ha punti > 0)
+            # Total points chart (only drivers with points > 0)
             points_data = results_df[results_df['total_points'] > 0].copy()
             if not points_data.empty:
-                # Ordina per visualizzazione orizzontale
+                # Sort for horizontal display
                 points_data = points_data.sort_values('total_points', ascending=True)
                 
                 fig_points = px.bar(
@@ -995,7 +1011,7 @@ class ACCWebDashboard:
                     x='total_points',
                     y='driver',
                     orientation='h',
-                    title="Punti Totali per Pilota",
+                    title="Total Points per Driver",
                     color='total_points',
                     color_continuous_scale='viridis'
                 )
@@ -1007,7 +1023,7 @@ class ACCWebDashboard:
         with col2:
             st.subheader("⚡ Qualifying vs Race Performance")
             
-            # Scatter plot qualifiche vs gara (solo piloti classificati)
+            # Scatter plot qualifying vs race (only classified drivers)
             scatter_data = results_df[
                 (pd.notna(results_df['qualifying_position'])) & 
                 (pd.notna(results_df['position'])) &
@@ -1020,14 +1036,14 @@ class ACCWebDashboard:
                     x='qualifying_position',
                     y='position',
                     hover_data=['driver', 'total_points'],
-                    title="Posizione Qualifica vs Posizione Gara",
+                    title="Qualifying Position vs Race Position",
                     labels={
-                        'qualifying_position': 'Posizione Qualifica',
-                        'position': 'Posizione Gara'
+                        'qualifying_position': 'Qualifying Position',
+                        'position': 'Race Position'
                     }
                 )
                 
-                # Aggiungi linea di riferimento (stesso piazzamento)
+                # Add reference line (same position)
                 max_pos = max(scatter_data['qualifying_position'].max(), scatter_data['position'].max())
                 fig_scatter.add_shape(
                     type="line",
@@ -1036,8 +1052,8 @@ class ACCWebDashboard:
                 )
                 
                 fig_scatter.update_layout(height=400)
-                fig_scatter.update_yaxes(autorange="reversed")  # Posizione 1 in alto
-                fig_scatter.update_xaxes(autorange="reversed")  # Posizione 1 a sinistra
+                fig_scatter.update_yaxes(autorange="reversed")  # Position 1 at top
+                fig_scatter.update_xaxes(autorange="reversed")  # Position 1 at left
                 st.plotly_chart(fig_scatter, use_container_width=True)
             else:
                 st.info("Insufficient data for performance chart")
