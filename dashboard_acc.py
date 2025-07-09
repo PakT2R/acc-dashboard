@@ -683,25 +683,20 @@ class ACCWebDashboard:
             return []
     
     def get_competition_results(self, competition_id: int) -> pd.DataFrame:
-        """Ottiene risultati competizione"""
+        """Ottiene risultati competizione - AGGIORNATO per nuova struttura"""
         query = """
             SELECT 
-                cr.race_position as position,
                 d.last_name as driver,
-                cr.qualifying_position,
                 cr.race_points,
                 cr.pole_points,
                 cr.fastest_lap_points,
-                cr.total_points,
-                cr.best_lap_time,
-                cr.total_laps,
-                cr.is_classified
+                cr.bonus_points,
+                cr.penalty_points,
+                cr.total_points
             FROM competition_results cr
             JOIN drivers d ON cr.driver_id = d.driver_id
             WHERE cr.competition_id = ?
-            ORDER BY 
-                CASE WHEN cr.race_position IS NULL THEN 1 ELSE 0 END,
-                cr.race_position
+            ORDER BY cr.total_points DESC, cr.race_points DESC
         """
         
         return self.safe_sql_query(query, [competition_id])
@@ -866,34 +861,30 @@ class ACCWebDashboard:
         results_df = self.get_competition_results(competition_id)
         
         if not results_df.empty:
-            # Formatta risultati per visualizzazione (stesso codice)
+            # Formatta risultati per visualizzazione - AGGIORNATO
             results_display = results_df.copy()
             
-            # Aggiungi medaglie
-            results_display['Pos'] = results_display['position'].apply(
-                lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(int(x)) if pd.notna(x) else "NC"
+            # Aggiungi posizione basata sull'ordine (già ordinato per punti nella query)
+            results_display['Pos'] = range(1, len(results_display) + 1)
+            results_display['Pos'] = results_display['Pos'].apply(
+                lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(x)
             )
             
-            # Formatta tempi giro
-            results_display['Miglior Giro'] = results_display['best_lap_time'].apply(
-                lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
-            )
-            
-            # Seleziona e rinomina colonne
+            # Seleziona e rinomina colonne - SOLO CAMPI RICHIESTI
             columns_to_show = [
-                'Pos', 'driver', 'qualifying_position', 'race_points', 
-                'pole_points', 'fastest_lap_points', 'total_points', 'Miglior Giro'
+                'Pos', 'driver', 'race_points', 'pole_points', 
+                'fastest_lap_points', 'bonus_points', 'penalty_points', 'total_points'
             ]
             
             column_names = {
                 'Pos': 'Pos',
                 'driver': 'Driver',
-                'qualifying_position': 'Quali Pos',
                 'race_points': 'Race Points',
                 'pole_points': 'Pole Points',
                 'fastest_lap_points': 'Fast Lap Points',
-                'total_points': 'Total Points',
-                'Miglior Giro': 'Best Lap'
+                'bonus_points': 'Bonus Points',
+                'penalty_points': 'Penalty Points',
+                'total_points': 'Total Points'
             }
             
             results_display = results_display[columns_to_show]
@@ -1144,7 +1135,7 @@ class ACCWebDashboard:
                         'Pos': 'Pos',
                         'driver': 'Driver',
                         'total_points': 'Points',
-                        'competitions_participated': 'Races',
+                        'competitions_participated': 'Competitions',
                         'wins': 'Wins',
                         'podiums': 'Podiums',
                         'poles': 'Poles',
@@ -1272,34 +1263,30 @@ class ACCWebDashboard:
         results_df = self.get_competition_results(competition_id)
         
         if not results_df.empty:
-            # Formatta risultati per visualizzazione
+            # Formatta risultati per visualizzazione - AGGIORNATO
             results_display = results_df.copy()
             
-            # Aggiungi medaglie
-            results_display['Pos'] = results_display['position'].apply(
-                lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(int(x)) if pd.notna(x) else "NC"
+            # Aggiungi posizione basata sull'ordine (già ordinato per punti nella query)
+            results_display['Pos'] = range(1, len(results_display) + 1)
+            results_display['Pos'] = results_display['Pos'].apply(
+                lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(x)
             )
             
-            # Formatta tempi giro
-            results_display['Miglior Giro'] = results_display['best_lap_time'].apply(
-                lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
-            )
-            
-            # Seleziona e rinomina colonne
+            # Seleziona e rinomina colonne - SOLO CAMPI RICHIESTI
             columns_to_show = [
-                'Pos', 'driver', 'qualifying_position', 'race_points', 
-                'pole_points', 'fastest_lap_points', 'total_points', 'Miglior Giro'
+                'Pos', 'driver', 'race_points', 'pole_points', 
+                'fastest_lap_points', 'bonus_points', 'penalty_points', 'total_points'
             ]
             
             column_names = {
                 'Pos': 'Pos',
                 'driver': 'Driver',
-                'qualifying_position': 'Quali Pos',
                 'race_points': 'Race Points',
                 'pole_points': 'Pole Points',
                 'fastest_lap_points': 'Fast Lap Points',
-                'total_points': 'Total Points',
-                'Miglior Giro': 'Best Lap'
+                'bonus_points': 'Bonus Points',
+                'penalty_points': 'Penalty Points',
+                'total_points': 'Total Points'
             }
             
             results_display = results_display[columns_to_show]
