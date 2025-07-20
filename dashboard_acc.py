@@ -1742,7 +1742,6 @@ class ACCWebDashboard:
                 s.session_date,
                 s.total_drivers,
                 s.competition_id,
-                s.is_official,
                 -- Winner info (posizione 1)
                 winner.driver_name as winner_name,
                 winner.total_time as winner_time,
