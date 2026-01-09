@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFL3 - Articolo del Giorno</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&family=Merriweather:wght@300;400;700;900&family=Oswald:wght@600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Merriweather', serif;
+            background: transparent;
+            color: #1a1a1a;
+            line-height: 1.6;
+        }
+
+        .article-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .article-header {
+            background: linear-gradient(135deg, #c41e3a 0%, #8b1528 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-bottom: 4px solid #ffd700;
+        }
+
+        .article-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .article-title {
+            font-family: 'Oswald', sans-serif;
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .article-subtitle {
+            font-family: 'Merriweather', serif;
+            font-size: 20px;
+            font-weight: 400;
+            font-style: italic;
+            opacity: 0.95;
+        }
+
+        .article-meta {
+            background: #f9f9f9;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e0e0e0;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .meta-icon {
+            color: #c41e3a;
+            font-size: 16px;
+        }
+
+        .article-body {
+            padding: 35px;
+        }
+
+        .article-body p {
+            margin-bottom: 18px;
+            font-size: 15px;
+            line-height: 1.8;
+            text-align: justify;
+        }
+
+        .article-body strong {
+            font-weight: 700;
+            color: #c41e3a;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+            border-left: 5px solid #c41e3a;
+            padding: 18px;
+            margin: 25px 0;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .highlight-box p {
+            font-size: 15px;
+            font-weight: 600;
+            color: #856404;
+            margin: 0;
+            text-align: left;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: #f9f9f9;
+            border: 2px solid #c41e3a;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(196, 30, 58, 0.2);
+        }
+
+        .stat-label {
+            font-family: 'Oswald', sans-serif;
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-family: 'Oswald', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: #c41e3a;
+        }
+
+        .stat-driver {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-top: 5px;
+        }
+
+        .christmas-box {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border-left: 5px solid #28a745;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .christmas-box p {
+            font-size: 15px;
+            font-weight: 600;
+            color: #155724;
+            margin: 8px 0;
+            text-align: left;
+        }
+
+        .closing-banner {
+            background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            font-family: 'Oswald', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-top: 30px;
+        }
+
+        .race-emoji {
+            font-size: 24px;
+            margin: 0 10px;
+        }
+
+        @media (max-width: 768px) {
+            .article-title {
+                font-size: 28px;
+            }
+
+            .article-subtitle {
+                font-size: 16px;
+            }
+
+            .article-body {
+                padding: 20px;
+            }
+
+            .article-meta {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="article-container">
+        <!-- Header articolo -->
+        <div class="article-header">
+            <div class="article-badge">🏆 TIER 1 Finale</div>
+            <h1 class="article-title">ELPLAZA CAMPIONE TIER 1!</h1>
+            <h2 class="article-subtitle">PakT2R trionfa a Indianapolis. Pausa natalizia: si riparte il 7 gennaio</h2>
+        </div>
+
+        <!-- Metadata -->
+        <div class="article-meta">
+            <div class="meta-item">
+                <span class="meta-icon">📅</span>
+                <span>Mercoledì 18 Dicembre 2025</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-icon">🏎️</span>
+                <span>The Merry Christmas Race - Indianapolis</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-icon">✍️</span>
+                <span>Redazione TFL3</span>
+            </div>
+        </div>
+
+        <!-- Corpo articolo -->
+        <div class="article-body">
+            <p><strong>INDIANAPOLIS</strong> - Si chiude il TIER 1 della TFL3 con una gara combattuta che premia <strong>PakT2R</strong> (17.5 punti), ma il vero protagonista della serata è <strong>Yo_soy_ElPlaZa</strong>, matematicamente <strong>CAMPIONE TIER 1</strong> con 66.5 punti totali e un margine di oltre 17 punti sul secondo classificato.</p>
+
+            <div class="highlight-box">
+                <p>🏆 PODIO TIER 1 FINALE: 1° Yo_soy_ElPlaZa (66.5 pt) | 2° Skeloth97- (49.2 pt) | 3° Fiddy5cent55 (47.5 pt)</p>
+            </div>
+
+            <h3 style="font-family: 'Oswald', sans-serif; color: #c41e3a; margin-top: 30px; margin-bottom: 15px;">THE MERRY CHRISTMAS RACE</h3>
+
+            <p>L'ultima gara del TIER 1 ha visto una partecipazione ridotta rispetto alle settimane precedenti. Il Time Attack ha registrato un calo del 50% (solo 9 partecipanti contro i 15 di Kyalami), segnale di un periodo festivo che inizia a farsi sentire.</p>
+
+            <p><strong>PakT2R</strong> ha colto la prima vittoria stagionale con una prestazione solida: 7.9 punti gara, 5.1 dal Time Attack e ben 9 guest battuti per un totale di <strong>17.5 punti</strong>. Secondo gradino del podio per <strong>Fiddy5cent55</strong> (14.5 pt) che conquista anche il bonus fastest lap, terzo <strong>Skeloth97-</strong> (12.8 pt) che consolida così il secondo posto in classifica TIER.</p>
+
+            <p>Quarto <strong>PaoloQuattro</strong> (11.4 pt), mentre <strong>CapacityRex3</strong> chiude quinto con 9.1 punti - punti che sarebbero stati ben più alti se avesse partecipato al Time Attack (0.0 punti TA anche in questa gara).</p>
+
+            <h3 style="font-family: 'Oswald', sans-serif; color: #c41e3a; margin-top: 30px; margin-bottom: 15px;">ELPLAZA: DOMINATORE INCONTRASTATO</h3>
+
+            <p><strong>Yo_soy_ElPlaZa</strong> chiude il TIER 1 con numeri impressionanti: <strong>66.5 punti</strong> in sole 3 gare (ha saltato Indianapolis), <strong>2 vittorie</strong> su 3 presenze, e una media stratosferica di 22.2 punti a gara. Una combinazione perfetta di velocità pura (sempre ai vertici del Time Attack) e costanza in gara.</p>
+
+            <p>Sul podio finale con lui <strong>Skeloth97-</strong> (49.2 pt, 4 gare) e <strong>Fiddy5cent55</strong> (47.5 pt, 4 gare, 2 pole position, 2 fastest lap), entrambi solidi e costanti ma senza la velocità esplosiva dello spagnolo.</p>
+
+            <!-- Statistiche principali -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">🏆 Campione Tier 1</div>
+                    <div class="stat-value">66.5 pt</div>
+                    <div class="stat-driver">Yo_soy_ElPlaZa</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">🏁 Vincitore Gara 4</div>
+                    <div class="stat-value">17.5 pt</div>
+                    <div class="stat-driver">PakT2R</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">⏱️ Miglior Tempo TA</div>
+                    <div class="stat-value">1:36.842</div>
+                    <div class="stat-driver">SKFR_Mirko</div>
+                </div>
+            </div>
+
+            <h3 style="font-family: 'Oswald', sans-serif; color: #c41e3a; margin-top: 30px; margin-bottom: 15px;">PARTECIPAZIONE IN CALO: UN CAMPANELLO D'ALLARME</h3>
+
+            <p>Il quarto Time Attack del TIER 1 si è concluso con una partecipazione dimezzata rispetto alla settimana precedente. Sarà il Natale alle porte, sarà l'entusiasmo iniziale che si affievolisce, ma i numeri preoccupano. Il TIER 2 si prospettava a porte chiuse senza guest, e ora dobbiamo sperare che il 2025 porti rinnovato interesse per continuare la TFL3.</p>
+
+            <p>Per il momento godiamoci il titolo di <strong>ElPlaZa</strong> e prepariamoci al meritato riposo natalizio.</p>
+
+            <!-- Box pausa natalizia -->
+            <div class="christmas-box">
+                <p style="text-align: center; font-size: 18px; margin-bottom: 15px;">🎄 PAUSA NATALIZIA 🎄</p>
+                <p>• Niente gare per i prossimi 2 mercoledì</p>
+                <p>• Time Attack TIER 2 inizia giovedì 1° gennaio 2025 ore 00:00</p>
+                <p>• Chiusura TA: martedì 6 gennaio ore 23:59</p>
+                <p>• Prima gara TIER 2: mercoledì 7 gennaio ore 22:00</p>
+                <p>• Circuito: da definire</p>
+                <p style="text-align: center; margin-top: 15px; font-style: italic;">(Se fate il capodanno sul server, guidate sobri! 🍾)</p>
+            </div>
+
+            <h3 style="font-family: 'Oswald', sans-serif; color: #c41e3a; margin-top: 30px; margin-bottom: 15px;">VERDETTO</h3>
+
+            <p><strong>Yo_soy_ElPlaZa</strong> è il giusto campione del TIER 1: velocità, costanza e intelligenza tattica. Il sistema "best 3 su 4" gli ha permesso di saltare Indianapolis senza conseguenze, dimostrando la flessibilità del format TFL3.</p>
+
+            <p>Il TIER 2 si preannuncia decisivo: chi si è già iscritto al campionato deve tornare a fare Time Attack, altrimenti rischia di lasciare sul piatto il 30-40% dei punti disponibili. CapacityRex3, questo vale soprattutto per te.</p>
+
+            <p>Buon Natale a tutti, ci rivediamo nel 2025 pronti a battagliare per il TIER 2!</p>
+        </div>
+
+        <!-- Banner finale -->
+        <div class="closing-banner">
+            <span class="race-emoji">🎅</span>
+            Prossima gara: 7 Gennaio 2025 ore 22:00 - TIER 2
+            <span class="race-emoji">🎄</span>
+        </div>
+    </div>
+</body>
+</html>
