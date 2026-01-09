@@ -649,42 +649,29 @@ class ACCWebDashboard:
 <p style="font-size: 1.1rem; margin: 15px 0 0 0; font-weight: 600; font-style: italic; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Organized by Terronia Racing 🏴</p>
 </div>""", unsafe_allow_html=True)
 
-        # Link to rulebook - apre file locale in nuova pagina usando Blob URL
+        # Link to rulebook - usa st.download_button per scaricare e aprire
         try:
-            import json
             rulebook_path = Path("tfl3_regolamento.html")
             if rulebook_path.exists():
                 with open(rulebook_path, 'r', encoding='utf-8') as f:
                     rulebook_html = f.read()
 
-                # Escape per JavaScript (usa json.dumps per gestire quotes e newlines)
-                rulebook_html_escaped = json.dumps(rulebook_html)
-
-                # Bottone con JavaScript per creare Blob URL e aprire in nuova tab
-                st.markdown(f"""
-<div style="text-align: center; margin: 25px 0;">
-<div onclick="openRulebook()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+                # Bottone stilizzato
+                st.markdown("""<div style="text-align: center; margin: 25px 0;">
+<div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             display: inline-block; padding: 18px 50px; border-radius: 50px;
             box-shadow: 0 6px 25px rgba(40, 167, 69, 0.4);
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            transition: all 0.3s ease;
-            cursor: pointer;">
+            border: 3px solid rgba(255, 255, 255, 0.3);">
 <p style="color: white; font-size: 1.3rem; font-weight: 700; margin: 0;
           text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);">
-📖 Read the Complete TFL3 Rulebook
+📖 TFL3 Rulebook
 </p>
 </div>
-</div>
+</div>""", unsafe_allow_html=True)
 
-<script>
-function openRulebook() {{
-    const htmlContent = {rulebook_html_escaped};
-    const blob = new Blob([htmlContent], {{ type: 'text/html' }});
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-}}
-</script>
-""", unsafe_allow_html=True)
+                # Expander con il contenuto del regolamento
+                with st.expander("👉 Click here to read the complete TFL3 Rulebook", expanded=False):
+                    st.components.v1.html(rulebook_html, height=800, scrolling=True)
             else:
                 st.warning("⚠️ Rulebook file not found")
         except Exception as e:
