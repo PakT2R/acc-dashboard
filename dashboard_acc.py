@@ -649,21 +649,21 @@ class ACCWebDashboard:
 <p style="font-size: 1.1rem; margin: 15px 0 0 0; font-weight: 600; font-style: italic; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Organized by Terronia Racing 🏴</p>
 </div>""", unsafe_allow_html=True)
 
-        # Link to rulebook - apre file locale in nuova pagina
+        # Link to rulebook - apre file locale in nuova pagina usando Blob URL
         try:
-            import base64
+            import json
             rulebook_path = Path("tfl3_regolamento.html")
             if rulebook_path.exists():
                 with open(rulebook_path, 'r', encoding='utf-8') as f:
                     rulebook_html = f.read()
 
-                # Codifica in base64 per data URI
-                rulebook_b64 = base64.b64encode(rulebook_html.encode('utf-8')).decode('utf-8')
-                rulebook_url = f"data:text/html;base64,{rulebook_b64}"
+                # Escape per JavaScript (usa json.dumps per gestire quotes e newlines)
+                rulebook_html_escaped = json.dumps(rulebook_html)
 
-                st.markdown(f"""<div style="text-align: center; margin: 25px 0;">
-<a href="{rulebook_url}" target="_blank" style="text-decoration: none;">
-<div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+                # Bottone con JavaScript per creare Blob URL e aprire in nuova tab
+                st.markdown(f"""
+<div style="text-align: center; margin: 25px 0;">
+<div onclick="openRulebook()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             display: inline-block; padding: 18px 50px; border-radius: 50px;
             box-shadow: 0 6px 25px rgba(40, 167, 69, 0.4);
             border: 3px solid rgba(255, 255, 255, 0.3);
@@ -674,8 +674,17 @@ class ACCWebDashboard:
 📖 Read the Complete TFL3 Rulebook
 </p>
 </div>
-</a>
-</div>""", unsafe_allow_html=True)
+</div>
+
+<script>
+function openRulebook() {{
+    const htmlContent = {rulebook_html_escaped};
+    const blob = new Blob([htmlContent], {{ type: 'text/html' }});
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+}}
+</script>
+""", unsafe_allow_html=True)
             else:
                 st.warning("⚠️ Rulebook file not found")
         except Exception as e:
