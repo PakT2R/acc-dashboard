@@ -589,34 +589,24 @@ class ACCWebDashboard:
             """)
 
     def show_daily_article(self):
-        """Mostra la rassegna stampa caricata da GitHub"""
-        import requests
-
+        """Mostra la rassegna stampa caricata da file locale"""
         st.subheader("📰 Rassegna Stampa")
 
         try:
-            # URL GitHub raw per daily_article.html
-            github_config = self.config.get('github', {})
-            username = github_config.get('username', 'PakT2R')
-            repo = github_config.get('repository', 'acc-dashboard')
-            branch = github_config.get('branch', 'main')
+            # Leggi file locale (disponibile sia in locale che dopo deploy su cloud)
+            article_path = Path("daily_article.html")
 
-            article_url = f"https://raw.githubusercontent.com/{username}/{repo}/{branch}/daily_article.html"
-
-            # Carica articolo da GitHub
-            response = requests.get(article_url, timeout=5)
-
-            if response.status_code == 200:
-                # Mostra HTML dell'articolo
-                st.components.v1.html(response.text, height=800, scrolling=True)
+            if article_path.exists():
+                # Leggi e mostra HTML dell'articolo
+                with open(article_path, 'r', encoding='utf-8') as f:
+                    article_html = f.read()
+                st.components.v1.html(article_html, height=800, scrolling=True)
             else:
                 st.info("📝 Nessun articolo disponibile al momento. Torna presto per nuovi aggiornamenti!")
 
-        except requests.exceptions.RequestException as e:
-            # In caso di errore di rete, mostra messaggio generico
-            st.info("📝 Articolo temporaneamente non disponibile. Riprova più tardi!")
         except Exception as e:
-            # Altri errori: mostra in locale, ignora in produzione
+            # In caso di errore, mostra messaggio generico
+            st.info("📝 Articolo temporaneamente non disponibile. Riprova più tardi!")
             if not self.is_github_deployment:
                 st.warning(f"⚠️ Errore caricamento articolo: {str(e)}")
 
@@ -660,22 +650,31 @@ class ACCWebDashboard:
 <p style="font-size: 1.1rem; margin: 15px 0 0 0; font-weight: 600; font-style: italic; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Organized by Terronia Racing 🏴</p>
 </div>""", unsafe_allow_html=True)
 
-        # Link to rulebook
+        # Link to rulebook - mostra file locale
         st.markdown("""<div style="text-align: center; margin: 25px 0;">
-<a href="https://htmlpreview.github.io/?https://github.com/PakT2R/acc-dashboard/blob/main/tfl_regolamento.html" target="_blank" style="text-decoration: none;">
 <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             display: inline-block; padding: 18px 50px; border-radius: 50px;
             box-shadow: 0 6px 25px rgba(40, 167, 69, 0.4);
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            transition: all 0.3s ease;
-            cursor: pointer;">
+            border: 3px solid rgba(255, 255, 255, 0.3);">
 <p style="color: white; font-size: 1.3rem; font-weight: 700; margin: 0;
           text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);">
-📖 Read the Complete TFL3 Rulebook
+📖 TFL3 Rulebook
 </p>
 </div>
-</a>
 </div>""", unsafe_allow_html=True)
+
+        # Mostra regolamento in expander
+        with st.expander("📖 Click to read the complete TFL3 Rulebook", expanded=False):
+            try:
+                rulebook_path = Path("tfl3_regolamento.html")
+                if rulebook_path.exists():
+                    with open(rulebook_path, 'r', encoding='utf-8') as f:
+                        rulebook_html = f.read()
+                    st.components.v1.html(rulebook_html, height=800, scrolling=True)
+                else:
+                    st.warning("⚠️ Rulebook file not found")
+            except Exception as e:
+                st.error(f"⚠️ Error loading rulebook: {str(e)}")
 
         # Statistiche principali
         st.markdown("---")
