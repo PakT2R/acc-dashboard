@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFL3 - Articolo del Giorno</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&family=Merriweather:wght@300;400;700;900&family=Oswald:wght@600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Merriweather', serif;
+            background: transparent;
+            color: #1a1a1a;
+            line-height: 1.6;
+        }
+
+        .article-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .article-header {
+            background: linear-gradient(135deg, #c41e3a 0%, #8b1528 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-bottom: 4px solid #ffd700;
+        }
+
+        .article-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .article-title {
+            font-family: 'Oswald', sans-serif;
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .article-subtitle {
+            font-family: 'Merriweather', serif;
+            font-size: 20px;
+            font-weight: 400;
+            font-style: italic;
+            opacity: 0.95;
+        }
+
+        .article-meta {
+            background: #f9f9f9;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e0e0e0;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .meta-icon {
+            color: #c41e3a;
+            font-size: 16px;
+        }
+
+        .article-body {
+            padding: 35px;
+        }
+
+        .article-body p {
+            margin-bottom: 18px;
+            font-size: 15px;
+            line-height: 1.8;
+            text-align: justify;
+        }
+
+        .article-body strong {
+            font-weight: 700;
+            color: #c41e3a;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+            border-left: 5px solid #c41e3a;
+            padding: 18px;
+            margin: 25px 0;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .highlight-box p {
+            font-size: 15px;
+            font-weight: 600;
+            color: #856404;
+            margin: 0;
+            text-align: left;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: #f9f9f9;
+            border: 2px solid #c41e3a;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(196, 30, 58, 0.2);
+        }
+
+        .stat-label {
+            font-family: 'Oswald', sans-serif;
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-family: 'Oswald', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: #c41e3a;
+        }
+
+        .stat-driver {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-top: 5px;
+        }
+
+        .warning-box {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border-left: 5px solid #dc3545;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .warning-box p {
+            font-size: 15px;
+            font-weight: 600;
+            color: #721c24;
+            margin: 8px 0;
+            text-align: left;
+        }
+
+        .closing-banner {
+            background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            font-family: 'Oswald', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-top: 30px;
+        }
+
+        .race-emoji {
+            font-size: 24px;
+            margin: 0 10px;
+        }
+
+        @media (max-width: 768px) {
+            .article-title {
+                font-size: 28px;
+            }
+
+            .article-subtitle {
+                font-size: 16px;
+            }
+
+            .article-body {
+                padding: 20px;
+            }
+
+            .article-meta {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="article-container">
+        <!-- Header articolo -->
+        <div class="article-header">
+            <div class="article-badge">🏆 TIER 2 - Gara 1</div>
+            <h1 class="article-title">RIPRESA CON BOTTO A BRANDS HATCH!</h1>
+            <h2 class="article-subtitle">NutPodSan68 vince la prima del TIER 2. Assenze pesanti tra i big</h2>
+        </div>
+
+        <!-- Metadata -->
+        <div class="article-meta">
+            <div class="meta-item">
+                <span class="meta-icon">📅</span>
+                <span>Mercoledì 8 Gennaio 2026</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-icon">🏎️</span>
+                <span>TIER 2 Gara 1 - Brands Hatch</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-icon">✍️</span>
+                <span>Redazione TFL3</span>
+            </div>
+        </div>
+
+        <!-- Corpo articolo -->
+        <div class="article-body">
+            <p><strong>BRANDS HATCH</strong> - La TFL3 riparte dopo la pausa natalizia con il TIER 2, e lo fa con una vittoria a sorpresa di <strong>NutPodSan68</strong> (15.2 punti totali) che conquista il primo gradino del podio in una gara combattutissima. Ma dietro i fuochi d'artificio in pista, si nasconde un dato preoccupante: <strong>assenze pesanti</strong> tra i protagonisti del TIER 1.</p>
+
+            <div class="highlight-box">
+                <p>🏆 PODIO COMPETIZIONE TIER 2 (punti totali): 1° NutPodSan68 (15.2 pt) | 2° Metshoot85 (9.3 pt) | 3° PakT2R (9.1 pt)</p>
+            </div>
+
+            <h3 style="font-family: 'Oswald', sans-serif; color: #c41e3a; margin-top: 30px; margin-bottom: 15px;">DOPPIETTA NUTPODSAN68: VINCE IN PISTA E IN CLASSIFICA</h3>
+
+            <p><strong>NutPodSan68</strong> ha dominato la prima gara del TIER 2 con una prestazione completa: vincitore della gara a Brands Hatch dopo un duello serrato, ha conquistato anche la vetta della classifica competizione con un totale impressionante di <strong>15.2 punti</strong> (8 pt gara + 5.2 Time Attack + 1 fastest lap + 2 guest battuti). Una combinazione perfetta di velocità pura e consistenza.</p>
+
+            <p>Sul podio della competizione salgono <strong>Metshoot85</strong> (9.3 pt) al secondo posto, che conferma la crescita vista nel TIER 1, e <strong>PakT2R</strong> (9.1 pt) al terzo, vincitore dell'ultima gara prima della pausa natalizia. Ma in pista la storia è stata diversa...</p>
+
+            <!-- Statistiche principali -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">🏁 Vincitore Gara 1</div>
+                    <div class="stat-value">15.2 pt</div>
+                    <div class="stat-driver">NutPodSan68</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">⚡ Fastest Lap</div>
+                    <div class="stat-value">+1 pt</div>
+                    <div class="stat-driver">NutPodSan68</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">👥 Guest Battuti</div>
+                    <div class="stat-value">2</div>
+                    <div class="stat-driver">Media piloti TFL</div>
+                </div>
+            </div>
+
+            <h3 style="font-family: 'Oswald', sans-serif; color: #c41e3a; margin-top: 30px; margin-bottom: 15px;">L'INCIDENTE CHE HA SCOSSO LA TFL: NUTPODSAN68 VS BEENIIIIII643</h3>
+
+            <p>Ma la vera storia della serata si è scritta all'ultimo giro della gara a Brands Hatch, in un episodio che ha diviso la community e potrebbe aver cambiato il futuro della TFL3.</p>
+
+            <p><strong>beeniiiiii643</strong> era saldamente in testa quando, all'ultimo giro, <strong>NutPodSan68</strong> ha tentato un disperato sorpasso. <strong>Contatto.</strong> beeniiiiii643 finisce fuori pista, NutPodSan68 taglia il traguardo per primo e conquista matematicamente la vittoria.</p>
+
+            <p>Ma è nel post-gara che esplode il caso. <strong>NutPodSan68</strong> attacca per primo, accusando beeniiiiii643 di guida pericolosa: "<em>Mi voleva ammazzare, non mi ha lasciato spazio</em>". La risposta di <strong>beeniiiiii643</strong> è secca: "<em>Gli avevo lasciato tutto lo spazio necessario, è lui che mi ha buttato fuori</em>".</p>
+
+            <p>Dopo ore di analisi delle telemetrie e dei replay, i <strong>giudici di gara</strong> hanno emesso il verdetto: <strong>NutPodSan68 responsabile del contatto</strong>. Nessuna penalità (l'incidente è stato considerato "racing incident"), ma la colpa dell'episodio ricade sul vincitore della gara.</p>
+
+            <p>E qui arriva il colpo di scena: secondo voci non confermate, <strong>NutPodSan68 avrebbe abbandonato la TFL3</strong> dopo la sentenza dei giudici. Se confermato, il leader della classifica TIER 2 lascerebbe il campionato dopo una sola gara, regalando di fatto la vittoria agli inseguitori.</p>
+
+            <p><strong>beeniiiiii643</strong>, scagionato dai giudici ma derubato della vittoria in pista, rimane fuori dal podio della competizione (7.9 punti) per aver saltato il Time Attack (0.0 pt). Una beffa doppia: vittoria rubata e niente podio per colpa del TA mancante.</p>
+
+            <h3 style="font-family: 'Oswald', sans-serif; color: #c41e3a; margin-top: 30px; margin-bottom: 15px;">LE ASSENZE CHE PREOCCUPANO</h3>
+
+            <p>Ma dietro le luci della vittoria, si nasconde un'ombra inquietante. Ben <strong>QUATTRO</strong> dei primi cinque piloti del TIER 1 erano <strong>ASSENTI</strong> alla prima gara del TIER 2:</p>
+
+            <div class="warning-box">
+                <p style="text-align: center; font-size: 16px; margin-bottom: 12px;">⚠️ ASSENTI ILLUSTRI ⚠️</p>
+                <p>• <strong>Yo_soy_ElPlaZa</strong> - 🏆 CAMPIONE TIER 1 (66.5 pt, 2 vittorie) - ASSENTE!</p>
+                <p>• <strong>Skeloth97-</strong> - 2° classificato TIER 1 (49.2 pt) - QUASI ASSENTE (solo 0.9 pt da TA)</p>
+                <p>• <strong>Fiddy5cent55</strong> - 3° classificato TIER 1 (47.5 pt) - ASSENTE</p>
+                <p>• <strong>SKFR_Mirko</strong> - 5° classificato TIER 1 (36.5 pt, 1 vittoria) - ASSENTE</p>
+            </div>
+
+            <p>L'assenza più clamorosa è quella del <strong>CAMPIONE TIER 1 Yo_soy_ElPlaZa</strong>: dopo aver dominato il primo TIER con 66.5 punti e 2 vittorie, lo spagnolo non si è presentato nemmeno alla prima gara del TIER 2. Un'assenza che fa ancora più rumore considerando che aveva saltato anche l'ultima gara del TIER 1 (Indianapolis).</p>
+
+            <p><strong>Skeloth97-</strong>, secondo classificato del TIER 1, ha fatto solo il Time Attack (0.9 punti) ma non si è presentato in gara. <strong>Fiddy5cent55</strong>, terzo classificato e dominatore delle qualifiche (2 pole, 2 fastest lap), è completamente assente. E anche <strong>SKFR_Mirko</strong>, vincitore di una gara nel TIER 1, ha disertato.</p>
+
+            <p>Dei top 5 del TIER 1, solo <strong>PaoloQuattro</strong> (4°) ha risposto presente. Un dato allarmante.</p>
+
+            <h3 style="font-family: 'Oswald', sans-serif; color: #c41e3a; margin-top: 30px; margin-bottom: 15px;">VERDETTO</h3>
+
+            <p>La prima gara del TIER 2 passerà alla storia non per la vittoria di <strong>NutPodSan68</strong>, ma per l'incidente con <strong>beeniiiiii643</strong> e per il possibile abbandono del leader della classifica. Un inizio di campionato controverso, amaro, che lascia più domande che risposte.</p>
+
+            <p>E mentre si discute di contatti e penalità, l'elefante nella stanza rimane: dove sono i big del TIER 1? <strong>Yo_soy_ElPlaZa</strong>, campione in carica, sparito nel nulla. <strong>Skeloth97-</strong>, <strong>Fiddy5cent55</strong>, <strong>SKFR_Mirko</strong>: assenti. Se NutPodSan68 ha davvero abbandonato, la TFL3 rischia di perdere anche l'unico pilota capace di vincere nel TIER 2.</p>
+
+            <p>Appuntamento alla prossima settimana. Con la speranza che qualcuno - chiunque - si presenti al via. Perché al momento la TFL3 sembra più un campo di battaglia abbandonato che un campionato.</p>
+        </div>
+
+        <!-- Banner finale -->
+        <div class="closing-banner">
+            <span class="race-emoji">🏁</span>
+            Prossima gara: 14 Gennaio 2026 ore 22:00 - TIER 2 Gara 2 - Watkins Glen
+            <span class="race-emoji">🏎️</span>
+        </div>
+    </div>
+</body>
+</html>
