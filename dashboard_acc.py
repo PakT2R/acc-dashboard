@@ -10,7 +10,6 @@ import sqlite3
 import json
 import pandas as pd
 import os
-import requests
 from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -650,31 +649,37 @@ class ACCWebDashboard:
 <p style="font-size: 1.1rem; margin: 15px 0 0 0; font-weight: 600; font-style: italic; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Organized by Terronia Racing 🏴</p>
 </div>""", unsafe_allow_html=True)
 
-        # Link to rulebook - mostra file locale
-        st.markdown("""<div style="text-align: center; margin: 25px 0;">
+        # Link to rulebook - apre file locale in nuova pagina
+        try:
+            import base64
+            rulebook_path = Path("tfl3_regolamento.html")
+            if rulebook_path.exists():
+                with open(rulebook_path, 'r', encoding='utf-8') as f:
+                    rulebook_html = f.read()
+
+                # Codifica in base64 per data URI
+                rulebook_b64 = base64.b64encode(rulebook_html.encode('utf-8')).decode('utf-8')
+                rulebook_url = f"data:text/html;base64,{rulebook_b64}"
+
+                st.markdown(f"""<div style="text-align: center; margin: 25px 0;">
+<a href="{rulebook_url}" target="_blank" style="text-decoration: none;">
 <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             display: inline-block; padding: 18px 50px; border-radius: 50px;
             box-shadow: 0 6px 25px rgba(40, 167, 69, 0.4);
-            border: 3px solid rgba(255, 255, 255, 0.3);">
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;">
 <p style="color: white; font-size: 1.3rem; font-weight: 700; margin: 0;
           text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);">
-📖 TFL3 Rulebook
+📖 Read the Complete TFL3 Rulebook
 </p>
 </div>
+</a>
 </div>""", unsafe_allow_html=True)
-
-        # Mostra regolamento in expander
-        with st.expander("📖 Click to read the complete TFL3 Rulebook", expanded=False):
-            try:
-                rulebook_path = Path("tfl3_regolamento.html")
-                if rulebook_path.exists():
-                    with open(rulebook_path, 'r', encoding='utf-8') as f:
-                        rulebook_html = f.read()
-                    st.components.v1.html(rulebook_html, height=800, scrolling=True)
-                else:
-                    st.warning("⚠️ Rulebook file not found")
-            except Exception as e:
-                st.error(f"⚠️ Error loading rulebook: {str(e)}")
+            else:
+                st.warning("⚠️ Rulebook file not found")
+        except Exception as e:
+            st.error(f"⚠️ Error loading rulebook: {str(e)}")
 
         # Statistiche principali
         st.markdown("---")
