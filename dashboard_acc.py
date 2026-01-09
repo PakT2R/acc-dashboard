@@ -598,7 +598,7 @@ class ACCWebDashboard:
             # URL GitHub raw per daily_article.html
             github_config = self.config.get('github', {})
             username = github_config.get('username', 'PakT2R')
-            repo = github_config.get('repository', 'tfl-dashboard')
+            repo = github_config.get('repository', 'acc-dashboard')
             branch = github_config.get('branch', 'main')
 
             article_url = f"https://raw.githubusercontent.com/{username}/{repo}/{branch}/daily_article.html"
@@ -662,7 +662,7 @@ class ACCWebDashboard:
 
         # Link to rulebook
         st.markdown("""<div style="text-align: center; margin: 25px 0;">
-<a href="https://htmlpreview.github.io/?https://github.com/PakT2R/tfl3-dashboard/blob/main/tfl_regolamento.html" target="_blank" style="text-decoration: none;">
+<a href="https://htmlpreview.github.io/?https://github.com/PakT2R/acc-dashboard/blob/main/tfl_regolamento.html" target="_blank" style="text-decoration: none;">
 <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             display: inline-block; padding: 18px 50px; border-radius: 50px;
             box-shadow: 0 6px 25px rgba(40, 167, 69, 0.4);
