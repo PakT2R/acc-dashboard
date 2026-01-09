@@ -649,30 +649,34 @@ class ACCWebDashboard:
 <p style="font-size: 1.1rem; margin: 15px 0 0 0; font-weight: 600; font-style: italic; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Organized by Terronia Racing 🏴</p>
 </div>""", unsafe_allow_html=True)
 
-        # Rulebook section - download e visualizzazione
+        # Link to rulebook - download del file locale
         try:
+            import base64
             rulebook_path = Path("tfl3_regolamento.html")
             if rulebook_path.exists():
                 with open(rulebook_path, 'r', encoding='utf-8') as f:
                     rulebook_html = f.read()
 
-                # Titolo sezione
-                st.markdown("""<div style="text-align: center; margin: 25px 0;">
-<p style="color: #28a745; font-size: 1.5rem; font-weight: 700; margin: 0;">
-📖 TFL3 Rulebook
-</p>
-</div>""", unsafe_allow_html=True)
+                # Codifica in base64 per data URI con download
+                rulebook_b64 = base64.b64encode(rulebook_html.encode('utf-8')).decode('utf-8')
+                rulebook_data_uri = f"data:text/html;base64,{rulebook_b64}"
 
-                # Bottone download centrato
-                col1, col2, col3 = st.columns([1, 2, 1])
-                with col2:
-                    st.download_button(
-                        label="⬇️ Download TFL3 Rulebook (HTML)",
-                        data=rulebook_html,
-                        file_name="tfl3_regolamento.html",
-                        mime="text/html",
-                        use_container_width=True
-                    )
+                # Bottone originale stilizzato con download
+                st.markdown(f"""<div style="text-align: center; margin: 25px 0;">
+<a href="{rulebook_data_uri}" download="tfl3_regolamento.html" style="text-decoration: none;">
+<div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            display: inline-block; padding: 18px 50px; border-radius: 50px;
+            box-shadow: 0 6px 25px rgba(40, 167, 69, 0.4);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;">
+<p style="color: white; font-size: 1.3rem; font-weight: 700; margin: 0;
+          text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);">
+📖 Download TFL3 Rulebook
+</p>
+</div>
+</a>
+</div>""", unsafe_allow_html=True)
 
                 # Expander con il contenuto del regolamento
                 with st.expander("👉 Or read it here - Click to open the complete TFL3 Rulebook", expanded=False):
