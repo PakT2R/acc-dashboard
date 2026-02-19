@@ -1460,37 +1460,38 @@ class ACCWebDashboard:
             if league_info:
                 name, season, start_date, end_date, total_tiers, is_completed, description = league_info
 
-                # Header league con stile championship-header
-                status_icon = "✅" if is_completed else "🔄"
+                # Header league con stile championship-header (non mostrato se lega a tier singolo)
+                if not total_tiers or total_tiers != 1:
+                    status_icon = "✅" if is_completed else "🔄"
 
-                # Costruisci l'HTML completo
-                header_html = f"""
-                <div class="championship-header">
-                    <h2>🌟 {name} {status_icon}</h2>
-                """
+                    # Costruisci l'HTML completo
+                    header_html = f"""
+                    <div class="championship-header">
+                        <h2>🌟 {name} {status_icon}</h2>
+                    """
 
-                if description:
-                    header_html += f"<p style='margin-top: 10px;'>{description}</p>"
+                    if description:
+                        header_html += f"<p style='margin-top: 10px;'>{description}</p>"
 
-                # Info aggiuntive
-                info_parts = []
-                if total_tiers:
-                    info_parts.append(f"🎯 {total_tiers} Tiers")
+                    # Info aggiuntive
+                    info_parts = []
+                    if total_tiers:
+                        info_parts.append(f"🎯 {total_tiers} Tiers")
 
-                if start_date and end_date:
-                    try:
-                        start = datetime.fromisoformat(start_date.replace('Z', '+00:00')).strftime('%d/%m/%Y')
-                        end = datetime.fromisoformat(end_date.replace('Z', '+00:00')).strftime('%d/%m/%Y')
-                        info_parts.append(f"📅 {start} - {end}")
-                    except:
-                        pass
+                    if start_date and end_date:
+                        try:
+                            start = datetime.fromisoformat(start_date.replace('Z', '+00:00')).strftime('%d/%m/%Y')
+                            end = datetime.fromisoformat(end_date.replace('Z', '+00:00')).strftime('%d/%m/%Y')
+                            info_parts.append(f"📅 {start} - {end}")
+                        except:
+                            pass
 
-                if info_parts:
-                    header_html += f"<p style='margin-top: 10px;'>{' | '.join(info_parts)}</p>"
+                    if info_parts:
+                        header_html += f"<p style='margin-top: 10px;'>{' | '.join(info_parts)}</p>"
 
-                header_html += "</div>"
+                    header_html += "</div>"
 
-                st.markdown(header_html, unsafe_allow_html=True)
+                    st.markdown(header_html, unsafe_allow_html=True)
 
                 # Classifica league (non mostrata se la lega ha un solo tier)
                 if not total_tiers or total_tiers != 1:
