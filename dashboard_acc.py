@@ -633,7 +633,7 @@ class ACCWebDashboard:
 
         # TFL Introduction Text
         st.markdown("""<div style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 50%, #495057 100%); padding: 40px 30px; border-radius: 20px; margin: 20px 0; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3); text-align: center; color: white; border: 3px solid rgba(255, 255, 255, 0.15);">
-<p style="font-size: 2.5rem; font-weight: 900; margin: 0 0 25px 0; text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4); letter-spacing: 1px; line-height: 1.2;">🏁 Terroni in pista! 🏁</p>
+<p style="font-size: 2.5rem; font-weight: 900; margin: 0 0 25px 0; text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4); letter-spacing: 1px; line-height: 1.2;">🏁 One night a week, one season together 🏁</p>
 <div style="background: rgba(255, 255, 255, 0.25); padding: 2px; margin: 25px auto; width: 80%; border-radius: 5px;"></div>
 <p style="font-size: 1.2rem; margin: 20px 0; font-weight: 500; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Welcome to the official dashboard of the <strong>Tier Friends League</strong></p>
 <p style="font-size: 1.1rem; margin: 25px 0 15px 0; font-weight: 600; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Use the menu to view:</p>
@@ -646,7 +646,7 @@ class ACCWebDashboard:
 </div>
 <div style="background: rgba(255, 255, 255, 0.25); padding: 2px; margin: 25px auto; width: 80%; border-radius: 5px;"></div>
 <p style="font-size: 1.3rem; margin: 20px 0 10px 0; font-weight: 700; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">⏰ Race every Wednesday at 10:00 PM</p>
-<p style="font-size: 1.1rem; margin: 15px 0 0 0; font-weight: 600; font-style: italic; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Organized by Terronia GT Racing 🏴</p>
+<p style="font-size: 1.1rem; margin: 15px 0 0 0; font-weight: 600; font-style: italic; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Organized by Terronia Racing 🏴</p>
 </div>""", unsafe_allow_html=True)
 
         # Link to rulebook - download del file locale
@@ -1492,108 +1492,111 @@ class ACCWebDashboard:
 
                 st.markdown(header_html, unsafe_allow_html=True)
 
-                # Classifica league
-                st.subheader("🌟 League Standings")
+                # Classifica league (non mostrata se la lega ha un solo tier)
+                if not total_tiers or total_tiers != 1:
+                    st.subheader("🌟 League Standings")
 
-                query_standings = """
-                    SELECT
-                        ls.position,
-                        d.last_name as driver,
-                        ls.tier1_points,
-                        ls.tier2_points,
-                        ls.tier3_points,
-                        ls.tier4_points,
-                        ls.total_final_points,
-                        ls.consistency_cv,
-                        ls.consistency_bonus,
-                        ls.tiers_participated,
-                        ls.total_wins,
-                        ls.total_podiums,
-                        ls.total_poles,
-                        ls.total_fastest_laps
-                    FROM league_standings ls
-                    JOIN drivers d ON ls.driver_id = d.driver_id
-                    WHERE ls.league_id = ?
-                    ORDER BY ls.position ASC
-                """
+                    query_standings = """
+                        SELECT
+                            ls.position,
+                            d.last_name as driver,
+                            ls.tier1_points,
+                            ls.tier2_points,
+                            ls.tier3_points,
+                            ls.tier4_points,
+                            ls.total_final_points,
+                            ls.consistency_cv,
+                            ls.consistency_bonus,
+                            ls.tiers_participated,
+                            ls.total_wins,
+                            ls.total_podiums,
+                            ls.total_poles,
+                            ls.total_fastest_laps
+                        FROM league_standings ls
+                        JOIN drivers d ON ls.driver_id = d.driver_id
+                        WHERE ls.league_id = ?
+                        ORDER BY ls.position ASC
+                    """
 
-                df_standings = pd.read_sql_query(query_standings, conn, params=(selected_league_id,))
+                    df_standings = pd.read_sql_query(query_standings, conn, params=(selected_league_id,))
 
-                if not df_standings.empty:
-                    # Formatta colonne
-                    df_display = df_standings.copy()
-                    df_display['position'] = df_display['position'].astype(int)
+                    if not df_standings.empty:
+                        # Formatta colonne
+                        df_display = df_standings.copy()
+                        df_display['position'] = df_display['position'].astype(int)
 
-                    # Rinomina colonne (nell'ordine originale della query)
-                    df_display.columns = ['Pos', 'Driver', 'Tier 1 Pts', 'Tier 2 Pts', 'Tier 3 Pts', 'Tier 4 Pts',
-                                         'Total Pts', 'CV%', 'Consist Pts', 'n Tiers', 'n Wins', 'n Pods', 'n Poles', 'n FLaps']
+                        # Rinomina colonne (nell'ordine originale della query)
+                        df_display.columns = ['Pos', 'Driver', 'Tier 1 Pts', 'Tier 2 Pts', 'Tier 3 Pts', 'Tier 4 Pts',
+                                             'Total Pts', 'CV%', 'Consist Pts', 'n Tiers', 'n Wins', 'n Pods', 'n Poles', 'n FLaps']
 
-                    # Formatta valori numerici: trattini per zeri, decimali per valori > 0
-                    df_display['Tier 1 Pts'] = df_display['Tier 1 Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
-                    df_display['Tier 2 Pts'] = df_display['Tier 2 Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
-                    df_display['Tier 3 Pts'] = df_display['Tier 3 Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
-                    df_display['Tier 4 Pts'] = df_display['Tier 4 Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
-                    df_display['Total Pts'] = df_display['Total Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "0.0")
-                    # CV% in percentuale (moltiplicato per 100)
-                    df_display['CV%'] = df_display['CV%'].apply(lambda x: f"{x*100:.1f}%" if pd.notna(x) and x > 0 else "-")
-                    df_display['Consist Pts'] = df_display['Consist Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
-                    # Formatta statistiche: trattini per zeri
-                    df_display['n Tiers'] = df_display['n Tiers'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                    df_display['n Wins'] = df_display['n Wins'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                    df_display['n Pods'] = df_display['n Pods'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                    df_display['n Poles'] = df_display['n Poles'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                    df_display['n FLaps'] = df_display['n FLaps'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
+                        # Formatta valori numerici: trattini per zeri, decimali per valori > 0
+                        df_display['Tier 1 Pts'] = df_display['Tier 1 Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
+                        df_display['Tier 2 Pts'] = df_display['Tier 2 Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
+                        df_display['Tier 3 Pts'] = df_display['Tier 3 Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
+                        df_display['Tier 4 Pts'] = df_display['Tier 4 Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
+                        df_display['Total Pts'] = df_display['Total Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "0.0")
+                        # CV% in percentuale (moltiplicato per 100)
+                        df_display['CV%'] = df_display['CV%'].apply(lambda x: f"{x*100:.1f}%" if pd.notna(x) and x > 0 else "-")
+                        df_display['Consist Pts'] = df_display['Consist Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
+                        # Formatta statistiche: trattini per zeri
+                        df_display['n Tiers'] = df_display['n Tiers'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
+                        df_display['n Wins'] = df_display['n Wins'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
+                        df_display['n Pods'] = df_display['n Pods'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
+                        df_display['n Poles'] = df_display['n Poles'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
+                        df_display['n FLaps'] = df_display['n FLaps'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
 
-                    # Riordina colonne: Pos, Driver, Total Pts, Tier 1-4, CV%, Consist, n Tiers, n Wins, n Pods, n Poles, n FLaps
-                    column_order = ['Pos', 'Driver', 'Total Pts', 'Tier 1 Pts', 'Tier 2 Pts', 'Tier 3 Pts', 'Tier 4 Pts',
-                                   'CV%', 'Consist Pts', 'n Tiers', 'n Wins', 'n Pods', 'n Poles', 'n FLaps']
-                    df_display = df_display[column_order]
+                        # Riordina colonne: Pos, Driver, Total Pts, Tier 1-4, CV%, Consist, n Tiers, n Wins, n Pods, n Poles, n FLaps
+                        column_order = ['Pos', 'Driver', 'Total Pts', 'Tier 1 Pts', 'Tier 2 Pts', 'Tier 3 Pts', 'Tier 4 Pts',
+                                       'CV%', 'Consist Pts', 'n Tiers', 'n Wins', 'n Pods', 'n Poles', 'n FLaps']
+                        df_display = df_display[column_order]
 
-                    # Applica stile: Total Pts in grassetto e verde, colonne statistiche con sfondo chiaro
-                    def highlight_league_columns(s):
-                        # Colonne statistiche con sfondo chiaro (incluso CV%)
-                        stats_cols = ['CV%', 'n Tiers', 'n Wins', 'n Pods', 'n Poles', 'n FLaps']
-                        if s.name in stats_cols:
-                            return ['background-color: #f0f2f6;' for _ in s]
-                        # Total Pts in grassetto e verde
-                        elif s.name == 'Total Pts':
-                            return ['font-weight: bold; color: green;' for _ in s]
-                        else:
-                            return ['' for _ in s]
+                        # Applica stile: Total Pts in grassetto e verde, colonne statistiche con sfondo chiaro
+                        def highlight_league_columns(s):
+                            # Colonne statistiche con sfondo chiaro (incluso CV%)
+                            stats_cols = ['CV%', 'n Tiers', 'n Wins', 'n Pods', 'n Poles', 'n FLaps']
+                            if s.name in stats_cols:
+                                return ['background-color: #f0f2f6;' for _ in s]
+                            # Total Pts in grassetto e verde
+                            elif s.name == 'Total Pts':
+                                return ['font-weight: bold; color: green;' for _ in s]
+                            else:
+                                return ['' for _ in s]
 
-                    styled_league = df_display.style.apply(highlight_league_columns, axis=0)
+                        styled_league = df_display.style.apply(highlight_league_columns, axis=0)
 
-                    # Configura larghezza colonne (in pixel)
-                    column_config = {
-                        'Pos': st.column_config.TextColumn('Pos', width=60),
-                        'Driver': st.column_config.TextColumn('Driver', width=150),
-                        'Total Pts': st.column_config.TextColumn('Total Pts', width=80),
-                        'Tier 1 Pts': st.column_config.TextColumn('Tier 1 Pts', width=80),
-                        'Tier 2 Pts': st.column_config.TextColumn('Tier 2 Pts', width=80),
-                        'Tier 3 Pts': st.column_config.TextColumn('Tier 3 Pts', width=80),
-                        'Tier 4 Pts': st.column_config.TextColumn('Tier 4 Pts', width=80),
-                        'CV%': st.column_config.TextColumn('CV%', width=70),
-                        'Consist Pts': st.column_config.TextColumn('Consist Pts', width=90),
-                        'n Tiers': st.column_config.TextColumn('n Tiers', width=70),
-                        'n Wins': st.column_config.TextColumn('n Wins', width=70),
-                        'n Pods': st.column_config.TextColumn('n Pods', width=70),
-                        'n Poles': st.column_config.TextColumn('n Poles', width=70),
-                        'n FLaps': st.column_config.TextColumn('n FLaps', width=70)
-                    }
+                        # Configura larghezza colonne (in pixel)
+                        column_config = {
+                            'Pos': st.column_config.TextColumn('Pos', width=60),
+                            'Driver': st.column_config.TextColumn('Driver', width=150),
+                            'Total Pts': st.column_config.TextColumn('Total Pts', width=80),
+                            'Tier 1 Pts': st.column_config.TextColumn('Tier 1 Pts', width=80),
+                            'Tier 2 Pts': st.column_config.TextColumn('Tier 2 Pts', width=80),
+                            'Tier 3 Pts': st.column_config.TextColumn('Tier 3 Pts', width=80),
+                            'Tier 4 Pts': st.column_config.TextColumn('Tier 4 Pts', width=80),
+                            'CV%': st.column_config.TextColumn('CV%', width=70),
+                            'Consist Pts': st.column_config.TextColumn('Consist Pts', width=90),
+                            'n Tiers': st.column_config.TextColumn('n Tiers', width=70),
+                            'n Wins': st.column_config.TextColumn('n Wins', width=70),
+                            'n Pods': st.column_config.TextColumn('n Pods', width=70),
+                            'n Poles': st.column_config.TextColumn('n Poles', width=70),
+                            'n FLaps': st.column_config.TextColumn('n FLaps', width=70)
+                        }
 
-                    # Mostra tabella
-                    st.dataframe(
-                        styled_league,
-                        width='stretch',
-                        hide_index=True,
-                        height=35 * len(df_display) + 38
-                    )
-                else:
-                    st.info("No standings available for this league yet")
+                        # Mostra tabella
+                        st.dataframe(
+                            styled_league,
+                            width='stretch',
+                            hide_index=True,
+                            height=35 * len(df_display) + 38
+                        )
+                    else:
+                        st.info("No standings available for this league yet")
 
                 # Selezione tier (championships)
-                st.markdown("---")
-                st.subheader("Tiers")
+                # Solo per leghe multi-tier: mostra separatore e subheader
+                if not total_tiers or total_tiers != 1:
+                    st.markdown("---")
+                    st.subheader("Tiers")
 
                 # Ottieni championships (tier) della lega con conteggio standing
                 cursor.execute("""
@@ -1619,189 +1622,193 @@ class ACCWebDashboard:
                 tier_championships = cursor.fetchall()
 
                 if tier_championships:
-                    # Prepara opzioni per selectbox tier
-                    tier_options = ["Select a tier..."]
-                    tier_map = {}
-                    default_tier_index = 1  # Default al primo tier (dopo "Select a tier...")
-
-                    for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, standings_count) in enumerate(tier_championships):
-                        # Formato display
-                        status_str = " ✅" if is_completed else " 🔄"
-                        date_str = f" ({date_start[:10]})" if date_start else ""
-                        display_name = f"Tier {tier_num} - {champ_name}{date_str}{status_str}"
-
-                        tier_options.append(display_name)
-                        tier_map[display_name] = champ_id
-
-                    # Trova default index: più recente con classifica calcolata
-                    first_with_standings_idx = None
-
-                    for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, standings_count) in enumerate(tier_championships):
-                        if standings_count > 0 and first_with_standings_idx is None:
-                            first_with_standings_idx = idx + 1  # +1 per "Select a tier..."
-                            break
-
-                    # Seleziona il più recente con standing, altrimenti il primo in lista
-                    if first_with_standings_idx is not None:
-                        default_tier_index = first_with_standings_idx
+                    if total_tiers == 1:
+                        # Lega a tier singolo: auto-seleziona il primo (unico) tier senza selectbox
+                        selected_tier_info = tier_championships[0]
                     else:
-                        default_tier_index = 1  # Fallback al primo tier
+                        # Più tier: mostra selectbox per selezione
+                        tier_options = ["Select a tier..."]
+                        tier_map = {}
+                        default_tier_index = 1  # Default al primo tier (dopo "Select a tier...")
 
-                    # Selectbox tier
-                    selected_tier = st.selectbox(
-                        "🏆 Select a Tier:",
-                        options=tier_options,
-                        index=default_tier_index,
-                        key="tier_select"
-                    )
+                        for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, standings_count) in enumerate(tier_championships):
+                            # Formato display
+                            status_str = " ✅" if is_completed else " 🔄"
+                            date_str = f" ({date_start[:10]})" if date_start else ""
+                            display_name = f"Tier {tier_num} - {champ_name}{date_str}{status_str}"
 
-                    if selected_tier and selected_tier != "Select a tier...":
-                        tier_championship_id = tier_map[selected_tier]
+                            tier_options.append(display_name)
+                            tier_map[display_name] = champ_id
 
-                        # Trova info tier selezionato
-                        selected_tier_info = next(
-                            (t for t in tier_championships if t[0] == tier_championship_id),
-                            None
+                        # Trova default index: più recente con classifica calcolata
+                        first_with_standings_idx = None
+
+                        for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, standings_count) in enumerate(tier_championships):
+                            if standings_count > 0 and first_with_standings_idx is None:
+                                first_with_standings_idx = idx + 1  # +1 per "Select a tier..."
+                                break
+
+                        # Seleziona il più recente con standing, altrimenti il primo in lista
+                        if first_with_standings_idx is not None:
+                            default_tier_index = first_with_standings_idx
+                        else:
+                            default_tier_index = 1  # Fallback al primo tier
+
+                        # Selectbox tier
+                        selected_tier = st.selectbox(
+                            "🏆 Select a Tier:",
+                            options=tier_options,
+                            index=default_tier_index,
+                            key="tier_select"
                         )
 
-                        if selected_tier_info:
-                            champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, standings_count = selected_tier_info
+                        if selected_tier and selected_tier != "Select a tier...":
+                            tier_championship_id = tier_map[selected_tier]
+                            selected_tier_info = next(
+                                (t for t in tier_championships if t[0] == tier_championship_id),
+                                None
+                            )
+                        else:
+                            selected_tier_info = None
 
-                            # Header tier championship
-                            tier_header = f"""
-                            <div class="championship-header">
-                                <h3>🏆 Tier {tier_num} - {champ_name}</h3>
-                            """
+                    if selected_tier_info:
+                        champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, standings_count = selected_tier_info
 
-                            if desc:
-                                tier_header += f"<p>{desc}</p>"
+                        # Header tier championship
+                        tier_header = f"""
+                        <div class="championship-header">
+                            <h3>🏆 Tier {tier_num} - {champ_name}</h3>
+                        """
 
-                            if date_start and date_end:
-                                tier_header += f"<p>📅 {date_start} - {date_end}</p>"
+                        if desc:
+                            tier_header += f"<p>{desc}</p>"
 
-                            tier_header += "</div>"
+                        if date_start and date_end:
+                            tier_header += f"<p>📅 {date_start} - {date_end}</p>"
 
-                            st.markdown(tier_header, unsafe_allow_html=True)
+                        tier_header += "</div>"
 
-                            # Classifica tier championship
-                            st.subheader("🏆 Tier Standings")
-                            standings_df = self.get_championship_standings(tier_championship_id)
+                        st.markdown(tier_header, unsafe_allow_html=True)
 
-                            if not standings_df.empty:
-                                # Ottieni drop_worst_results e total_rounds per questo championship
-                                cursor.execute("""
-                                    SELECT COALESCE(ps.drop_worst_results, 0) as drop_worst,
-                                           ch.total_rounds
-                                    FROM competitions c
-                                    LEFT JOIN points_systems ps ON c.points_system_json = ps.name
-                                    JOIN championships ch ON c.championship_id = ch.championship_id
-                                    WHERE c.championship_id = ?
-                                    LIMIT 1
-                                """, (tier_championship_id,))
+                        # Classifica tier championship
+                        st.subheader("🏆 Tier Standings")
+                        standings_df = self.get_championship_standings(champ_id)
 
-                                result = cursor.fetchone()
-                                drop_worst = result[0] if result else 0
-                                total_rounds = result[1] if result and result[1] else 0
+                        if not standings_df.empty:
+                            # Ottieni drop_worst_results e total_rounds per questo championship
+                            cursor.execute("""
+                                SELECT COALESCE(ps.drop_worst_results, 0) as drop_worst,
+                                       ch.total_rounds
+                                FROM competitions c
+                                LEFT JOIN points_systems ps ON c.points_system_json = ps.name
+                                JOIN championships ch ON c.championship_id = ch.championship_id
+                                WHERE c.championship_id = ?
+                                LIMIT 1
+                            """, (champ_id,))
 
-                                # Calcola il numero minimo di gare che vengono conteggiate
-                                counted_races = max(0, total_rounds - drop_worst) if total_rounds > 0 else 0
+                            result = cursor.fetchone()
+                            drop_worst = result[0] if result else 0
+                            total_rounds = result[1] if result and result[1] else 0
 
-                                # Formatta classifica per visualizzazione
-                                standings_display = standings_df.copy()
+                            # Calcola il numero minimo di gare che vengono conteggiate
+                            counted_races = max(0, total_rounds - drop_worst) if total_rounds > 0 else 0
 
-                                # Aggiungi medaglie per primi 3
-                                standings_display['Pos'] = standings_display['position'].apply(
-                                    lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(x)
-                                )
+                            # Formatta classifica per visualizzazione
+                            standings_display = standings_df.copy()
 
-                                # Formatta points_dropped PRIMA di convertire competitions_participated in stringa
-                                def format_dropped_points(row):
-                                    races = row['competitions_participated']
-                                    dropped_pts = row['points_dropped']
+                            # Aggiungi medaglie per primi 3
+                            standings_display['Pos'] = standings_display['position'].apply(
+                                lambda x: "🥇" if x == 1 else "🥈" if x == 2 else "🥉" if x == 3 else str(x)
+                            )
 
-                                    if pd.notna(dropped_pts) and dropped_pts > 0:
-                                        return f"-{dropped_pts:.1f}"
-                                    elif counted_races > 0 and races > counted_races:
-                                        return "0.0"
-                                    else:
-                                        return "-"
+                            # Formatta points_dropped PRIMA di convertire competitions_participated in stringa
+                            def format_dropped_points(row):
+                                races = row['competitions_participated']
+                                dropped_pts = row['points_dropped']
 
-                                standings_display['points_dropped'] = standings_display.apply(format_dropped_points, axis=1)
+                                if pd.notna(dropped_pts) and dropped_pts > 0:
+                                    return f"-{dropped_pts:.1f}"
+                                elif counted_races > 0 and races > counted_races:
+                                    return "0.0"
+                                else:
+                                    return "-"
 
-                                # Formatta i valori numerici - usa "-" per zero/null
-                                standings_display['competitions_participated'] = standings_display['competitions_participated'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                                standings_display['wins'] = standings_display['wins'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                                standings_display['podiums'] = standings_display['podiums'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                                standings_display['poles'] = standings_display['poles'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                                standings_display['fastest_laps'] = standings_display['fastest_laps'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                                standings_display['gross_points'] = standings_display['gross_points'].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "0.0")
-                                standings_display['manual_penalties'] = standings_display['manual_penalties'].apply(lambda x: f"-{x:.0f}" if pd.notna(x) and x > 0 else "-")
-                                standings_display['total_points'] = standings_display['total_points'].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "0.0")
+                            standings_display['points_dropped'] = standings_display.apply(format_dropped_points, axis=1)
 
-                                # Seleziona colonne da mostrare nell'ordine richiesto: Pos, Driver, Total, Gross, Drop, Pen | n Comps, n Wins, n Pods, n Poles, n FLaps
-                                columns_to_show = [
-                                    'Pos', 'driver', 'total_points', 'gross_points', 'points_dropped',
-                                    'manual_penalties', 'competitions_participated', 'wins', 'podiums',
-                                    'poles', 'fastest_laps'
-                                ]
+                            # Formatta i valori numerici - usa "-" per zero/null
+                            standings_display['competitions_participated'] = standings_display['competitions_participated'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
+                            standings_display['wins'] = standings_display['wins'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
+                            standings_display['podiums'] = standings_display['podiums'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
+                            standings_display['poles'] = standings_display['poles'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
+                            standings_display['fastest_laps'] = standings_display['fastest_laps'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
+                            standings_display['gross_points'] = standings_display['gross_points'].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "0.0")
+                            standings_display['manual_penalties'] = standings_display['manual_penalties'].apply(lambda x: f"-{x:.0f}" if pd.notna(x) and x > 0 else "-")
+                            standings_display['total_points'] = standings_display['total_points'].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "0.0")
 
-                                # Rinomina colonne con i nomi corti
-                                column_names = {
-                                    'Pos': 'Pos',
-                                    'driver': 'Driver',
-                                    'total_points': 'Total Pts',
-                                    'gross_points': 'Gross Pts',
-                                    'points_dropped': 'Drop Pts',
-                                    'manual_penalties': 'Pen Pts',
-                                    'competitions_participated': 'n Comps',
-                                    'wins': 'n Wins',
-                                    'podiums': 'n Pods',
-                                    'poles': 'n Poles',
-                                    'fastest_laps': 'n FLaps'
-                                }
+                            # Seleziona colonne da mostrare nell'ordine richiesto: Pos, Driver, Total, Gross, Drop, Pen | n Comps, n Wins, n Pods, n Poles, n FLaps
+                            columns_to_show = [
+                                'Pos', 'driver', 'total_points', 'gross_points', 'points_dropped',
+                                'manual_penalties', 'competitions_participated', 'wins', 'podiums',
+                                'poles', 'fastest_laps'
+                            ]
 
-                                standings_display = standings_display[columns_to_show]
-                                standings_display.columns = [column_names[col] for col in columns_to_show]
+                            # Rinomina colonne con i nomi corti
+                            column_names = {
+                                'Pos': 'Pos',
+                                'driver': 'Driver',
+                                'total_points': 'Total Pts',
+                                'gross_points': 'Gross Pts',
+                                'points_dropped': 'Drop Pts',
+                                'manual_penalties': 'Pen Pts',
+                                'competitions_participated': 'n Comps',
+                                'wins': 'n Wins',
+                                'podiums': 'n Pods',
+                                'poles': 'n Poles',
+                                'fastest_laps': 'n FLaps'
+                            }
 
-                                # Applica stile: Total Pts in grassetto e verde, colonne statistiche con sfondo chiaro
-                                def highlight_columns(s):
-                                    # Colonne statistiche con sfondo chiaro
-                                    stats_cols = ['n Comps', 'n Wins', 'n Pods', 'n Poles', 'n FLaps']
-                                    if s.name in stats_cols:
-                                        return ['background-color: #f0f2f6;' for _ in s]
-                                    # Total Pts in grassetto e verde
-                                    elif s.name == 'Total Pts':
-                                        return ['font-weight: bold; color: green;' for _ in s]
-                                    else:
-                                        return ['' for _ in s]
+                            standings_display = standings_display[columns_to_show]
+                            standings_display.columns = [column_names[col] for col in columns_to_show]
 
-                                styled_standings = standings_display.style.apply(highlight_columns, axis=0)
+                            # Applica stile: Total Pts in grassetto e verde, colonne statistiche con sfondo chiaro
+                            def highlight_columns(s):
+                                # Colonne statistiche con sfondo chiaro
+                                stats_cols = ['n Comps', 'n Wins', 'n Pods', 'n Poles', 'n FLaps']
+                                if s.name in stats_cols:
+                                    return ['background-color: #f0f2f6;' for _ in s]
+                                # Total Pts in grassetto e verde
+                                elif s.name == 'Total Pts':
+                                    return ['font-weight: bold; color: green;' for _ in s]
+                                else:
+                                    return ['' for _ in s]
 
-                                # Configura larghezza colonne (in pixel)
-                                column_config = {
-                                    'Pos': st.column_config.TextColumn('Pos', width=60),
-                                    'Driver': st.column_config.TextColumn('Driver', width=150),
-                                    'Total Pts': st.column_config.TextColumn('Total Pts', width=80),
-                                    'Gross Pts': st.column_config.TextColumn('Gross Pts', width=80),
-                                    'Drop Pts': st.column_config.TextColumn('Drop Pts', width=70),
-                                    'Pen Pts': st.column_config.TextColumn('Pen Pts', width=70),
-                                    'n Comps': st.column_config.TextColumn('n Comps', width=70),
-                                    'n Wins': st.column_config.TextColumn('n Wins', width=60),
-                                    'n Pods': st.column_config.TextColumn('n Pods', width=60),
-                                    'n Poles': st.column_config.TextColumn('n Poles', width=70),
-                                    'n FLaps': st.column_config.TextColumn('n FLaps', width=70)
-                                }
+                            styled_standings = standings_display.style.apply(highlight_columns, axis=0)
 
-                                # Mostra tabella senza indice e con altezza dinamica
-                                st.dataframe(
-                                    styled_standings,
-                                    width='stretch',
-                                    hide_index=True,
-                                    height=35 * len(standings_display) + 38
-                                )
+                            # Configura larghezza colonne (in pixel)
+                            column_config = {
+                                'Pos': st.column_config.TextColumn('Pos', width=60),
+                                'Driver': st.column_config.TextColumn('Driver', width=150),
+                                'Total Pts': st.column_config.TextColumn('Total Pts', width=80),
+                                'Gross Pts': st.column_config.TextColumn('Gross Pts', width=80),
+                                'Drop Pts': st.column_config.TextColumn('Drop Pts', width=70),
+                                'Pen Pts': st.column_config.TextColumn('Pen Pts', width=70),
+                                'n Comps': st.column_config.TextColumn('n Comps', width=70),
+                                'n Wins': st.column_config.TextColumn('n Wins', width=60),
+                                'n Pods': st.column_config.TextColumn('n Pods', width=60),
+                                'n Poles': st.column_config.TextColumn('n Poles', width=70),
+                                'n FLaps': st.column_config.TextColumn('n FLaps', width=70)
+                            }
 
-                            else:
-                                st.warning("⚠️ Tier championship leaderboard not yet calculated")
+                            # Mostra tabella senza indice e con altezza dinamica
+                            st.dataframe(
+                                styled_standings,
+                                width='stretch',
+                                hide_index=True,
+                                height=35 * len(standings_display) + 38
+                            )
+
+                        else:
+                            st.warning("⚠️ Tier championship leaderboard not yet calculated")
                 else:
                     st.info("ℹ️ No tier championships found for this league")
 
@@ -3511,6 +3518,38 @@ class ACCWebDashboard:
 
         return self.safe_sql_query(query, [driver_id, driver_id])
 
+    def get_driver_tracks_list(self, driver_id: int) -> List[str]:
+        """Restituisce le piste su cui il pilota ha giri validi"""
+        query = '''
+            SELECT DISTINCT s.track_name
+            FROM laps l
+            JOIN sessions s ON l.session_id = s.session_id
+            WHERE l.driver_id = ? AND l.is_valid_for_best = 1 AND l.lap_time > 0
+            ORDER BY s.track_name
+        '''
+        df = self.safe_sql_query(query, [driver_id])
+        if df.empty:
+            return []
+        return df['track_name'].tolist()
+
+    def get_driver_lap_trend(self, driver_id: int, track_name: str) -> pd.DataFrame:
+        """Restituisce il miglior tempo per data del pilota su una pista, raggruppando sessioni della stessa giornata"""
+        query = '''
+            SELECT
+                DATE(s.session_date) as session_date,
+                MIN(l.lap_time) as best_lap
+            FROM laps l
+            JOIN sessions s ON l.session_id = s.session_id
+            WHERE l.driver_id = ?
+              AND s.track_name = ?
+              AND l.is_valid_for_best = 1
+              AND l.lap_time > 0
+              AND (s.is_wet_session IS NULL OR s.is_wet_session = 0)
+            GROUP BY DATE(s.session_date)
+            ORDER BY DATE(s.session_date) ASC
+        '''
+        return self.safe_sql_query(query, [driver_id, track_name])
+
     def show_drivers_report(self):
         """Mostra il report Drivers con selezione generale o per pilota specifico"""
         st.header("👥 Drivers")
@@ -3760,7 +3799,11 @@ class ACCWebDashboard:
             st.caption("🟢 Official Session • ⚪ Unofficial Session • 🏆 Track Record")
         
         self.show_driver_best_times(driver_data['driver_id'])
-    
+
+        # Grafico andamento tempi per pista
+        st.markdown("---")
+        self.show_driver_lap_trend(driver_data['driver_id'])
+
     def show_driver_best_times(self, driver_id: int):
         """Mostra tutti i migliori tempi del pilota per ogni pista"""
         
@@ -3828,7 +3871,114 @@ class ACCWebDashboard:
         
         with col2:
             st.success(f"🏆 **{records_held}** track records currently held")
-    
+
+    def show_driver_lap_trend(self, driver_id: int):
+        """Mostra grafico andamento tempi del pilota per pista"""
+        st.subheader("📈 Lap Time Trend")
+
+        tracks = self.get_driver_tracks_list(driver_id)
+        if not tracks:
+            st.warning("⚠️ No valid laps found for this driver")
+            return
+
+        selected_track = st.selectbox(
+            "🏁 Select Track:",
+            options=tracks,
+            key="driver_lap_trend_track"
+        )
+
+        if not selected_track:
+            return
+
+        df = self.get_driver_lap_trend(driver_id, selected_track)
+        if df.empty:
+            st.warning("⚠️ No lap data found for this track")
+            return
+
+        # Formatta tempi per hover
+        df['time_formatted'] = df['best_lap'].apply(
+            lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
+        )
+
+        # Asse X: data formattata (una sola volta per giorno)
+        df['x_label'] = df['session_date'].apply(
+            lambda d: self.format_session_date(d) if pd.notna(d) else "N/A"
+        )
+
+        import numpy as np
+
+        fig = go.Figure()
+
+        # Traccia unica con tutti i punti in ordine
+        fig.add_trace(go.Scatter(
+            x=list(range(len(df))),
+            y=df['best_lap'],
+            mode='lines+markers',
+            name='Best Lap',
+            line=dict(color='#007bff', width=2),
+            marker=dict(size=10, color='#007bff'),
+            customdata=df[['time_formatted', 'x_label']].values,
+            hovertemplate=(
+                '<b>%{customdata[0]}</b><br>'
+                '%{customdata[1]}<extra></extra>'
+            )
+        ))
+
+        # Linea di tendenza
+        if len(df) >= 3:
+            x_num = np.arange(len(df))
+            y_vals = df['best_lap'].values
+            coeffs = np.polyfit(x_num, y_vals, 1)
+            trend_y = np.polyval(coeffs, x_num)
+            fig.add_trace(go.Scatter(
+                x=list(range(len(df))),
+                y=trend_y,
+                mode='lines',
+                name='Trend',
+                line=dict(color='rgba(255,255,255,0.4)', width=2, dash='dash'),
+                hoverinfo='skip'
+            ))
+
+        # Tick Y personalizzati con tempi formattati
+        y_min = df['best_lap'].min()
+        y_max = df['best_lap'].max()
+        margin = (y_max - y_min) * 0.1 if y_max > y_min else 1000
+        tick_values = np.linspace(y_min - margin, y_max + margin, 8)
+        tick_texts = [self.format_lap_time(int(v)) for v in tick_values]
+
+        fig.update_layout(
+            title={
+                'text': f'Best Lap per Day — {selected_track}',
+                'x': 0.5,
+                'xanchor': 'center'
+            },
+            xaxis=dict(
+                title="Date",
+                tickvals=list(range(len(df))),
+                ticktext=df['x_label'].tolist(),
+                tickangle=-45
+            ),
+            yaxis=dict(
+                title="Lap Time",
+                tickvals=tick_values.tolist(),
+                ticktext=tick_texts,
+                range=[y_min - margin, y_max + margin]
+            ),
+            hovermode='closest',
+            template='plotly_dark',
+            height=500,
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
 
 def main():
     """Funzione principale dell'applicazione"""
