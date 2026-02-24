@@ -401,10 +401,19 @@ class ACCWebDashboard:
                 sr.best_lap,
                 sr.total_time,
                 sr.is_spectator,
-                d.trust_level
+                CASE WHEN ch.championship_type = 'tier' THEN
+                         CASE WHEN ce.driver_id IS NOT NULL THEN 1 ELSE 0 END
+                     ELSE
+                         CASE WHEN d.trust_level > 0 THEN 1 ELSE 0 END
+                     END as is_enrolled
             FROM session_results sr
             JOIN drivers d ON sr.driver_id = d.driver_id
             LEFT JOIN car_models cm ON sr.car_model = cm.car_model
+            LEFT JOIN sessions s ON sr.session_id = s.session_id
+            LEFT JOIN competitions c ON s.competition_id = c.competition_id
+            LEFT JOIN championships ch ON c.championship_id = ch.championship_id
+            LEFT JOIN championship_enrollments ce
+                   ON sr.driver_id = ce.driver_id AND ce.championship_id = c.championship_id
             WHERE sr.session_id = ?
             ORDER BY
                 CASE WHEN sr.position IS NULL THEN 1 ELSE 0 END,
@@ -1003,11 +1012,17 @@ class ACCWebDashboard:
                 cs.total_points,
                 cs.guests_beaten,
                 cs.beaten_by_guests,
-                d.trust_level
+                CASE WHEN ch.championship_type != 'tier' THEN 1
+                     WHEN ce.driver_id IS NOT NULL THEN 1
+                     ELSE 0 END as is_enrolled
             FROM competition_standings cs
             JOIN drivers d ON cs.driver_id = d.driver_id
+            JOIN competitions c ON cs.competition_id = c.competition_id
+            JOIN championships ch ON c.championship_id = ch.championship_id
+            LEFT JOIN championship_enrollments ce
+                   ON cs.driver_id = ce.driver_id AND ce.championship_id = c.championship_id
             WHERE cs.competition_id = ?
-                AND d.trust_level > 0
+                AND (ch.championship_type != 'tier' OR ce.driver_id IS NOT NULL)
             ORDER BY cs.total_points DESC,
                      cs.race_points DESC
         """
@@ -1161,9 +1176,9 @@ class ACCWebDashboard:
                     results_display['Pos'] = results_display['Pos'].apply(lambda x: str(x))
 
                     # Formatta i valori numerici
-                    # Race points: "0.0" per membri con 0 punti, "-" per guest con 0 punti, altrimenti valore
+                    # Race points: "0.0" per iscritti con 0 punti, "-" per guest con 0 punti, altrimenti valore
                     results_display['race_points'] = results_display.apply(
-                        lambda row: "0.0" if pd.notna(row['race_points']) and row['race_points'] == 0 and row['trust_level'] > 0
+                        lambda row: "0.0" if pd.notna(row['race_points']) and row['race_points'] == 0 and row['is_enrolled'] > 0
                         else ("-" if pd.notna(row['race_points']) and row['race_points'] == 0
                         else (f"{row['race_points']:.1f}" if pd.notna(row['race_points']) else "-")),
                         axis=1
@@ -1176,9 +1191,9 @@ class ACCWebDashboard:
                         lambda x: f"+{x:.1f}" if pd.notna(x) and x > 0 else (f"-{abs(x):.1f}" if pd.notna(x) and x < 0 else "-")
                     )
                     results_display['points_dropped'] = results_display['points_dropped'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
-                    # Total points: "0.0" per membri con 0 punti, "-" per guest con 0 punti, altrimenti valore
+                    # Total points: "0.0" per iscritti con 0 punti, "-" per guest con 0 punti, altrimenti valore
                     results_display['total_points'] = results_display.apply(
-                        lambda row: "0.0" if pd.notna(row['total_points']) and row['total_points'] == 0 and row['trust_level'] > 0
+                        lambda row: "0.0" if pd.notna(row['total_points']) and row['total_points'] == 0 and row['is_enrolled'] > 0
                         else ("-" if pd.notna(row['total_points']) and row['total_points'] == 0
                         else (f"{row['total_points']:.1f}" if pd.notna(row['total_points']) else "-")),
                         axis=1
@@ -1281,8 +1296,8 @@ class ACCWebDashboard:
                                 lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
                             )
 
-                            # Crea colonna Type con icona (persona per registrati, ghost per guest)
-                            session_display['Type'] = session_display['trust_level'].apply(
+                            # Crea colonna Type con icona (persona per iscritti al campionato, ghost per guest)
+                            session_display['Type'] = session_display['is_enrolled'].apply(
                                 lambda x: "👤" if x > 0 else "👻"
                             )
 
@@ -1292,7 +1307,7 @@ class ACCWebDashboard:
                             )
 
                             # Seleziona colonne da mostrare (Driver prima di Num#)
-                            columns_to_show = ['Pos', 'driver', 'race_number', 'Car', 'Type', 'lap_count', 'Best Lap', 'Total Time', 'trust_level']
+                            columns_to_show = ['Pos', 'driver', 'race_number', 'Car', 'Type', 'lap_count', 'Best Lap', 'Total Time', 'is_enrolled']
                             column_names = {
                                 'Pos': 'Pos',
                                 'driver': 'Driver',
@@ -1302,15 +1317,15 @@ class ACCWebDashboard:
                                 'lap_count': 'Laps',
                                 'Best Lap': 'Best Lap',
                                 'Total Time': 'Total Time',
-                                'trust_level': 'trust_level'  # Manteniamo per lo stile
+                                'is_enrolled': 'is_enrolled'  # Manteniamo per lo stile
                             }
 
                             session_display = session_display[columns_to_show]
                             session_display.columns = [column_names[col] for col in columns_to_show]
 
-                            # Rimuovi colonna trust_level dalla visualizzazione finale
+                            # Rimuovi colonna is_enrolled dalla visualizzazione finale
                             final_columns = ['Pos', 'Driver', 'Num#', 'Car', 'Type', 'Laps', 'Best Lap', 'Total Time']
-                            session_display_final = session_display.drop(columns=['trust_level'])
+                            session_display_final = session_display.drop(columns=['is_enrolled'])
                             session_display_final.columns = final_columns
 
                             # Configurazione larghezza colonne: colonne strette per Pos, Num#, Type, Laps
