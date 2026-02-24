@@ -724,8 +724,43 @@ class ACCWebDashboard:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            # Ottieni TUTTE le competizioni (come in Standings)
-            # Ordinate per data (più recenti prima)
+            # Ottieni campionati con ordinamento come in standings
+            cursor.execute("""
+                SELECT ch.championship_id, ch.name, ch.is_completed, ch.start_date
+                FROM championships ch
+                ORDER BY
+                    CASE WHEN ch.start_date IS NULL THEN 1 ELSE 0 END,
+                    ch.start_date DESC,
+                    ch.championship_id DESC
+            """)
+            championships = cursor.fetchall()
+
+            if not championships:
+                st.warning("❌ No championships found in database")
+                conn.close()
+                return
+
+            # Prepara opzioni campionato, default: primo non completato
+            champ_options = []
+            champ_map = {}
+            champ_default = 0
+            for idx, (champ_id, champ_name, is_completed, start_date) in enumerate(championships):
+                status_str = " ✅" if is_completed else " 🔄"
+                display = f"{champ_name}{status_str}"
+                champ_options.append(display)
+                champ_map[display] = champ_id
+                if not is_completed and champ_default == 0:
+                    champ_default = idx
+
+            selected_championship = st.selectbox(
+                "🏆 Select Championship:",
+                options=champ_options,
+                index=champ_default,
+                key="ta_championship_select"
+            )
+            selected_champ_id = champ_map[selected_championship]
+
+            # Ottieni competizioni del campionato selezionato
             cursor.execute("""
                 SELECT
                     c.competition_id,
@@ -744,48 +779,39 @@ class ACCWebDashboard:
                 FROM competitions c
                 LEFT JOIN championships ch ON c.championship_id = ch.championship_id
                 LEFT JOIN leagues l ON ch.league_id = l.league_id
+                WHERE c.championship_id = ?
                 GROUP BY c.competition_id
                 ORDER BY
                     CASE WHEN c.date_start IS NULL THEN 1 ELSE 0 END,
                     c.date_start DESC,
                     c.round_number DESC
-            """)
+            """, (selected_champ_id,))
 
             competitions = cursor.fetchall()
 
             if not competitions:
-                st.warning("❌ No competitions found in database")
+                st.warning("❌ No competitions found for this championship")
                 conn.close()
                 return
 
-            # Prepara opzioni per selectbox
+            # Prepara opzioni per selectbox competizione
             competition_options = []
             competition_map = {}
             default_index = 0
 
             for idx, (comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name) in enumerate(competitions):
-                # Formato display
                 round_str = f"R{round_num} - " if round_num else ""
                 status_str = " ✅" if is_completed else " 🔄"
                 date_str = f" ({date_start[:10]})" if date_start else ""
-
                 display_name = f"{round_str}{name} - {track}{date_str}{status_str}"
-
                 competition_options.append(display_name)
                 competition_map[display_name] = (comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name)
 
-            # Trova default index: più recente con risultati Time Attack o sessioni Time Attack
-            first_with_data_idx = None
+            # Default: prima competizione con dati Time Attack
             for idx, (comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name) in enumerate(competitions):
-                if (session_count > 0 or results_count > 0) and first_with_data_idx is None:
-                    first_with_data_idx = idx
+                if session_count > 0 or results_count > 0:
+                    default_index = idx
                     break
-
-            # Seleziona la più recente con dati Time Attack, altrimenti la prima in lista
-            if first_with_data_idx is not None:
-                default_index = first_with_data_idx
-            else:
-                default_index = 0  # Fallback alla prima competizione
 
             # Selectbox competizione
             selected_competition = st.selectbox(
@@ -1003,31 +1029,39 @@ class ACCWebDashboard:
         query = """
             SELECT
                 d.last_name as driver,
-                cs.race_points,
+                CASE WHEN race_sr.driver_id IS NOT NULL THEN cs.race_points ELSE NULL END as race_points,
                 cs.pole_points,
                 cs.fastest_lap_points,
-                cs.time_attack_points,
+                CASE WHEN tar.driver_id IS NOT NULL THEN cs.time_attack_points ELSE NULL END as time_attack_points,
                 cs.points_bonus,
                 cs.points_dropped,
                 cs.total_points,
                 cs.guests_beaten,
-                cs.beaten_by_guests,
-                CASE WHEN ch.championship_type != 'tier' THEN 1
-                     WHEN ce.driver_id IS NOT NULL THEN 1
-                     ELSE 0 END as is_enrolled
+                cs.beaten_by_guests
             FROM competition_standings cs
             JOIN drivers d ON cs.driver_id = d.driver_id
             JOIN competitions c ON cs.competition_id = c.competition_id
             JOIN championships ch ON c.championship_id = ch.championship_id
             LEFT JOIN championship_enrollments ce
                    ON cs.driver_id = ce.driver_id AND ce.championship_id = c.championship_id
+            LEFT JOIN time_attack_results tar
+                   ON cs.driver_id = tar.driver_id AND tar.competition_id = cs.competition_id
+            LEFT JOIN (
+                SELECT DISTINCT sr.driver_id
+                FROM session_results sr
+                JOIN sessions s ON sr.session_id = s.session_id
+                WHERE s.competition_id = ?
+                  AND s.session_type LIKE 'R%'
+                  AND (s.is_time_attack IS NULL OR s.is_time_attack = 0)
+                  AND sr.is_spectator = FALSE
+            ) race_sr ON cs.driver_id = race_sr.driver_id
             WHERE cs.competition_id = ?
                 AND (ch.championship_type != 'tier' OR ce.driver_id IS NOT NULL)
             ORDER BY cs.total_points DESC,
                      cs.race_points DESC
         """
 
-        return self.safe_sql_query(query, [competition_id])
+        return self.safe_sql_query(query, [competition_id, competition_id])
     
     def get_competition_sessions(self, competition_id: int) -> List[Tuple]:
         """Ottiene sessioni della competizione con nome del pilota che ha fatto il best lap"""
@@ -1071,8 +1105,43 @@ class ACCWebDashboard:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            # Ottieni TUTTE le competizioni (come in Time Attack)
-            # Ordinate per data (più recenti prima)
+            # Ottieni campionati con ordinamento come in standings
+            cursor.execute("""
+                SELECT ch.championship_id, ch.name, ch.is_completed, ch.start_date
+                FROM championships ch
+                ORDER BY
+                    CASE WHEN ch.start_date IS NULL THEN 1 ELSE 0 END,
+                    ch.start_date DESC,
+                    ch.championship_id DESC
+            """)
+            championships = cursor.fetchall()
+
+            if not championships:
+                st.warning("❌ No championships found in database")
+                conn.close()
+                return
+
+            # Prepara opzioni campionato, default: primo non completato
+            champ_options = []
+            champ_map = {}
+            champ_default = 0
+            for idx, (champ_id, champ_name, is_completed, start_date) in enumerate(championships):
+                status_str = " ✅" if is_completed else " 🔄"
+                display = f"{champ_name}{status_str}"
+                champ_options.append(display)
+                champ_map[display] = champ_id
+                if not is_completed and champ_default == 0:
+                    champ_default = idx
+
+            selected_championship = st.selectbox(
+                "🏆 Select Championship:",
+                options=champ_options,
+                index=champ_default,
+                key="race_championship_select"
+            )
+            selected_champ_id = champ_map[selected_championship]
+
+            # Ottieni competizioni del campionato selezionato
             cursor.execute("""
                 SELECT
                     c.competition_id,
@@ -1091,48 +1160,39 @@ class ACCWebDashboard:
                 FROM competitions c
                 LEFT JOIN championships ch ON c.championship_id = ch.championship_id
                 LEFT JOIN leagues l ON ch.league_id = l.league_id
+                WHERE c.championship_id = ?
                 GROUP BY c.competition_id
                 ORDER BY
                     CASE WHEN c.date_start IS NULL THEN 1 ELSE 0 END,
                     c.date_start DESC,
                     c.round_number DESC
-            """)
+            """, (selected_champ_id,))
 
             competitions = cursor.fetchall()
 
             if not competitions:
-                st.warning("❌ No competitions found in database")
+                st.warning("❌ No competitions found for this championship")
                 conn.close()
                 return
 
-            # Prepara opzioni per selectbox
+            # Prepara opzioni per selectbox competizione
             competition_options = []
             competition_map = {}
             default_index = 0
 
             for idx, (comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name) in enumerate(competitions):
-                # Formato display
                 round_str = f"R{round_num} - " if round_num else ""
                 status_str = " ✅" if is_completed else " 🔄"
                 date_str = f" ({date_start[:10]})" if date_start else ""
-
                 display_name = f"{round_str}{name} - {track}{date_str}{status_str}"
-
                 competition_options.append(display_name)
                 competition_map[display_name] = (comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name)
 
-            # Trova default index: più recente con risultati o sessioni
-            first_with_data_idx = None
+            # Default: prima competizione con dati race
             for idx, (comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name) in enumerate(competitions):
-                if (session_count > 0 or results_count > 0) and first_with_data_idx is None:
-                    first_with_data_idx = idx
+                if session_count > 0 or results_count > 0:
+                    default_index = idx
                     break
-
-            # Seleziona la più recente con dati, altrimenti la prima in lista
-            if first_with_data_idx is not None:
-                default_index = first_with_data_idx
-            else:
-                default_index = 0  # Fallback alla prima competizione
 
             # Selectbox competizione
             selected_competition = st.selectbox(
@@ -1176,27 +1236,19 @@ class ACCWebDashboard:
                     results_display['Pos'] = results_display['Pos'].apply(lambda x: str(x))
 
                     # Formatta i valori numerici
-                    # Race points: "0.0" per iscritti con 0 punti, "-" per guest con 0 punti, altrimenti valore
-                    results_display['race_points'] = results_display.apply(
-                        lambda row: "0.0" if pd.notna(row['race_points']) and row['race_points'] == 0 and row['is_enrolled'] > 0
-                        else ("-" if pd.notna(row['race_points']) and row['race_points'] == 0
-                        else (f"{row['race_points']:.1f}" if pd.notna(row['race_points']) else "-")),
-                        axis=1
+                    results_display['race_points'] = results_display['race_points'].apply(
+                        lambda x: "0.0" if pd.notna(x) and x == 0 else (f"{x:.1f}" if pd.notna(x) else "-")
                     )
                     results_display['pole_points'] = results_display['pole_points'].apply(lambda x: f"{int(x)}" if pd.notna(x) and x > 0 else "-")
                     results_display['fastest_lap_points'] = results_display['fastest_lap_points'].apply(lambda x: f"{int(x)}" if pd.notna(x) and x > 0 else "-")
-                    results_display['time_attack_points'] = results_display['time_attack_points'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
+                    results_display['time_attack_points'] = results_display['time_attack_points'].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "-")
                     # Bonus: mostra + se positivo, - se negativo, "-" se zero/null
                     results_display['points_bonus'] = results_display['points_bonus'].apply(
                         lambda x: f"+{x:.1f}" if pd.notna(x) and x > 0 else (f"-{abs(x):.1f}" if pd.notna(x) and x < 0 else "-")
                     )
                     results_display['points_dropped'] = results_display['points_dropped'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
-                    # Total points: "0.0" per iscritti con 0 punti, "-" per guest con 0 punti, altrimenti valore
-                    results_display['total_points'] = results_display.apply(
-                        lambda row: "0.0" if pd.notna(row['total_points']) and row['total_points'] == 0 and row['is_enrolled'] > 0
-                        else ("-" if pd.notna(row['total_points']) and row['total_points'] == 0
-                        else (f"{row['total_points']:.1f}" if pd.notna(row['total_points']) else "-")),
-                        axis=1
+                    results_display['total_points'] = results_display['total_points'].apply(
+                        lambda x: "0.0" if pd.notna(x) and x == 0 else (f"{x:.1f}" if pd.notna(x) else "-")
                     )
                     results_display['guests_beaten'] = results_display['guests_beaten'].apply(lambda x: f"{int(x)}" if pd.notna(x) and x > 0 else "-")
                     results_display['beaten_by_guests'] = results_display['beaten_by_guests'].apply(lambda x: f"{int(x)}" if pd.notna(x) and x > 0 else "-")
