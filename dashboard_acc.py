@@ -1676,10 +1676,11 @@ class ACCWebDashboard:
                         c.end_date,
                         c.is_completed,
                         c.description,
+                        c.championship_type,
                         COUNT(cs.driver_id) as standings_count
                     FROM championships c
                     LEFT JOIN championship_standings cs ON c.championship_id = cs.championship_id
-                    WHERE c.league_id = ? AND c.championship_type = 'tier'
+                    WHERE c.league_id = ?
                     GROUP BY c.championship_id
                     ORDER BY
                         CASE WHEN c.start_date IS NULL THEN 1 ELSE 0 END,
@@ -1699,11 +1700,14 @@ class ACCWebDashboard:
                         tier_map = {}
                         default_tier_index = 1  # Default al primo tier (dopo "Select a tier...")
 
-                        for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, standings_count) in enumerate(tier_championships):
+                        for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, champ_type, standings_count) in enumerate(tier_championships):
                             # Formato display
                             status_str = " ✅" if is_completed else " 🔄"
                             date_str = f" ({date_start[:10]})" if date_start else ""
-                            display_name = f"Tier {tier_num} - {champ_name}{date_str}{status_str}"
+                            if champ_type == 'tier' and tier_num:
+                                display_name = f"Tier {tier_num} - {champ_name}{date_str}{status_str}"
+                            else:
+                                display_name = f"{champ_name}{date_str}{status_str}"
 
                             tier_options.append(display_name)
                             tier_map[display_name] = champ_id
@@ -1711,7 +1715,7 @@ class ACCWebDashboard:
                         # Trova default index: più recente con classifica calcolata
                         first_with_standings_idx = None
 
-                        for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, standings_count) in enumerate(tier_championships):
+                        for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, champ_type, standings_count) in enumerate(tier_championships):
                             if standings_count > 0 and first_with_standings_idx is None:
                                 first_with_standings_idx = idx + 1  # +1 per "Select a tier..."
                                 break
@@ -1740,12 +1744,13 @@ class ACCWebDashboard:
                             selected_tier_info = None
 
                     if selected_tier_info:
-                        champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, standings_count = selected_tier_info
+                        champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, champ_type, standings_count = selected_tier_info
 
                         # Header tier championship
+                        champ_title = f"Tier {tier_num} - {champ_name}" if champ_type == 'tier' and tier_num else champ_name
                         tier_header = f"""
                         <div class="championship-header">
-                            <h3>🏆 Tier {tier_num} - {champ_name}</h3>
+                            <h3>🏆 {champ_title}</h3>
                         """
 
                         if desc:
@@ -1758,8 +1763,8 @@ class ACCWebDashboard:
 
                         st.markdown(tier_header, unsafe_allow_html=True)
 
-                        # Classifica tier championship
-                        st.subheader("🏆 Tier Standings")
+                        # Classifica championship
+                        st.subheader("🏆 Standings")
                         standings_df = self.get_championship_standings(champ_id)
 
                         if not standings_df.empty:
