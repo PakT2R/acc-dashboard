@@ -723,10 +723,11 @@ class ACCWebDashboard:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            # Ottieni campionati con ordinamento come in standings
+            # Ottieni campionati TIER (solo TIER hanno Time Attack)
             cursor.execute("""
                 SELECT ch.championship_id, ch.name, ch.is_completed, ch.start_date
                 FROM championships ch
+                WHERE ch.championship_type = 'tier'
                 ORDER BY
                     CASE WHEN ch.start_date IS NULL THEN 1 ELSE 0 END,
                     ch.start_date DESC,
@@ -2882,7 +2883,7 @@ class ACCWebDashboard:
             final_display,
             width='content',
             hide_index=True,
-            height=400,
+            height=600,
             column_config=column_config
         )
         
