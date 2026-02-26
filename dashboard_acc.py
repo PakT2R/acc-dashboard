@@ -308,7 +308,7 @@ class ACCWebDashboard:
             
             # Query sicure con gestione errori
             safe_queries = {
-                'total_drivers': 'SELECT COUNT(*) FROM drivers WHERE trust_level > 0',
+                'total_drivers': 'SELECT COUNT(*) FROM drivers WHERE trust_level > 1',
                 'guest_drivers': 'SELECT COUNT(*) FROM drivers WHERE trust_level = 0',
                 'total_leagues': 'SELECT COUNT(*) FROM leagues',
                 'total_sessions': 'SELECT COUNT(*) FROM sessions',
@@ -403,8 +403,7 @@ class ACCWebDashboard:
                 sr.is_spectator,
                 CASE WHEN ch.championship_type = 'tier' THEN
                          CASE WHEN ce.driver_id IS NOT NULL THEN 1 ELSE 0 END
-                     ELSE
-                         CASE WHEN d.trust_level > 0 THEN 1 ELSE 0 END
+                     ELSE 1
                      END as is_enrolled
             FROM session_results sr
             JOIN drivers d ON sr.driver_id = d.driver_id
@@ -1456,11 +1455,8 @@ class ACCWebDashboard:
                     l.end_date,
                     l.total_tiers,
                     l.is_completed,
-                    l.description,
-                    COUNT(ls.driver_id) as standings_count
+                    l.description
                 FROM leagues l
-                LEFT JOIN league_standings ls ON l.league_id = ls.league_id
-                GROUP BY l.league_id
                 ORDER BY
                     CASE WHEN l.start_date IS NULL THEN 1 ELSE 0 END,
                     l.start_date DESC,
@@ -1477,9 +1473,8 @@ class ACCWebDashboard:
             # Prepara opzioni per selectbox
             league_options = []
             league_map = {}
-            default_league_index = 0  # Default: prima league
 
-            for league_id, name, season, start_date, end_date, total_tiers, is_completed, description, standings_count in leagues:
+            for league_id, name, season, start_date, end_date, total_tiers, is_completed, description in leagues:
                 # Formato display
                 status_str = " ✅" if is_completed else " 🔄"
                 season_str = f" - {season}" if season else ""
@@ -1487,26 +1482,12 @@ class ACCWebDashboard:
                 league_options.append(display_name)
                 league_map[display_name] = league_id
 
-            # Trova default index: più recente con classifica calcolata
-            first_with_standings_idx = None
-
-            for idx, (league_id, name, season, start_date, end_date, total_tiers, is_completed, description, standings_count) in enumerate(leagues):
-                if standings_count > 0 and first_with_standings_idx is None:
-                    first_with_standings_idx = idx
-                    break
-
-            # Seleziona la più recente con standing, altrimenti la prima in lista
-            if first_with_standings_idx is not None:
-                default_league_index = first_with_standings_idx
-            else:
-                default_league_index = 0  # Fallback alla prima league
-
             # Selectbox league
             st.subheader("Leagues")
             selected_league_display = st.selectbox(
                 "🌟 Select a League:",
                 league_options,
-                index=default_league_index,
+                index=0,
                 key="league_selector"
             )
 
@@ -1560,111 +1541,9 @@ class ACCWebDashboard:
 
                     st.markdown(header_html, unsafe_allow_html=True)
 
-                # Classifica league (non mostrata se la lega ha un solo tier)
-                if not total_tiers or total_tiers != 1:
-                    st.subheader("🌟 League Standings")
-
-                    query_standings = """
-                        SELECT
-                            ls.position,
-                            d.last_name as driver,
-                            ls.tier1_points,
-                            ls.tier2_points,
-                            ls.tier3_points,
-                            ls.tier4_points,
-                            ls.total_final_points,
-                            ls.consistency_cv,
-                            ls.consistency_bonus,
-                            ls.tiers_participated,
-                            ls.total_wins,
-                            ls.total_podiums,
-                            ls.total_poles,
-                            ls.total_fastest_laps
-                        FROM league_standings ls
-                        JOIN drivers d ON ls.driver_id = d.driver_id
-                        WHERE ls.league_id = ?
-                        ORDER BY ls.position ASC
-                    """
-
-                    df_standings = pd.read_sql_query(query_standings, conn, params=(selected_league_id,))
-
-                    if not df_standings.empty:
-                        # Formatta colonne
-                        df_display = df_standings.copy()
-                        df_display['position'] = df_display['position'].astype(int)
-
-                        # Rinomina colonne (nell'ordine originale della query)
-                        df_display.columns = ['Pos', 'Driver', 'Tier 1 Pts', 'Tier 2 Pts', 'Tier 3 Pts', 'Tier 4 Pts',
-                                             'Total Pts', 'CV%', 'Consist Pts', 'n Tiers', 'n Wins', 'n Pods', 'n Poles', 'n FLaps']
-
-                        # Formatta valori numerici: trattini per zeri, decimali per valori > 0
-                        df_display['Tier 1 Pts'] = df_display['Tier 1 Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
-                        df_display['Tier 2 Pts'] = df_display['Tier 2 Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
-                        df_display['Tier 3 Pts'] = df_display['Tier 3 Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
-                        df_display['Tier 4 Pts'] = df_display['Tier 4 Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
-                        df_display['Total Pts'] = df_display['Total Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "0.0")
-                        # CV% in percentuale (moltiplicato per 100)
-                        df_display['CV%'] = df_display['CV%'].apply(lambda x: f"{x*100:.1f}%" if pd.notna(x) and x > 0 else "-")
-                        df_display['Consist Pts'] = df_display['Consist Pts'].apply(lambda x: f"{x:.1f}" if pd.notna(x) and x > 0 else "-")
-                        # Formatta statistiche: trattini per zeri
-                        df_display['n Tiers'] = df_display['n Tiers'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                        df_display['n Wins'] = df_display['n Wins'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                        df_display['n Pods'] = df_display['n Pods'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                        df_display['n Poles'] = df_display['n Poles'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-                        df_display['n FLaps'] = df_display['n FLaps'].apply(lambda x: str(int(x)) if pd.notna(x) and x > 0 else "-")
-
-                        # Riordina colonne: Pos, Driver, Total Pts, Tier 1-4, CV%, Consist, n Tiers, n Wins, n Pods, n Poles, n FLaps
-                        column_order = ['Pos', 'Driver', 'Total Pts', 'Tier 1 Pts', 'Tier 2 Pts', 'Tier 3 Pts', 'Tier 4 Pts',
-                                       'CV%', 'Consist Pts', 'n Tiers', 'n Wins', 'n Pods', 'n Poles', 'n FLaps']
-                        df_display = df_display[column_order]
-
-                        # Applica stile: Total Pts in grassetto e verde, colonne statistiche con sfondo chiaro
-                        def highlight_league_columns(s):
-                            # Colonne statistiche con sfondo chiaro (incluso CV%)
-                            stats_cols = ['CV%', 'n Tiers', 'n Wins', 'n Pods', 'n Poles', 'n FLaps']
-                            if s.name in stats_cols:
-                                return ['background-color: #f0f2f6;' for _ in s]
-                            # Total Pts in grassetto e verde
-                            elif s.name == 'Total Pts':
-                                return ['font-weight: bold; color: green;' for _ in s]
-                            else:
-                                return ['' for _ in s]
-
-                        styled_league = df_display.style.apply(highlight_league_columns, axis=0)
-
-                        # Configura larghezza colonne (in pixel)
-                        column_config = {
-                            'Pos': st.column_config.TextColumn('Pos', width=60),
-                            'Driver': st.column_config.TextColumn('Driver', width=150),
-                            'Total Pts': st.column_config.TextColumn('Total Pts', width=80),
-                            'Tier 1 Pts': st.column_config.TextColumn('Tier 1 Pts', width=80),
-                            'Tier 2 Pts': st.column_config.TextColumn('Tier 2 Pts', width=80),
-                            'Tier 3 Pts': st.column_config.TextColumn('Tier 3 Pts', width=80),
-                            'Tier 4 Pts': st.column_config.TextColumn('Tier 4 Pts', width=80),
-                            'CV%': st.column_config.TextColumn('CV%', width=70),
-                            'Consist Pts': st.column_config.TextColumn('Consist Pts', width=90),
-                            'n Tiers': st.column_config.TextColumn('n Tiers', width=70),
-                            'n Wins': st.column_config.TextColumn('n Wins', width=70),
-                            'n Pods': st.column_config.TextColumn('n Pods', width=70),
-                            'n Poles': st.column_config.TextColumn('n Poles', width=70),
-                            'n FLaps': st.column_config.TextColumn('n FLaps', width=70)
-                        }
-
-                        # Mostra tabella
-                        st.dataframe(
-                            styled_league,
-                            width='stretch',
-                            hide_index=True,
-                            height=35 * len(df_display) + 38
-                        )
-                    else:
-                        st.info("No standings available for this league yet")
-
                 # Selezione tier (championships)
-                # Solo per leghe multi-tier: mostra separatore e subheader
-                if not total_tiers or total_tiers != 1:
-                    st.markdown("---")
-                    st.subheader("Tiers")
+                st.markdown("---")
+                st.subheader("Tiers")
 
                 # Ottieni championships (tier) della lega con conteggio standing
                 cursor.execute("""
@@ -1681,6 +1560,7 @@ class ACCWebDashboard:
                     FROM championships c
                     LEFT JOIN championship_standings cs ON c.championship_id = cs.championship_id
                     WHERE c.league_id = ?
+                      AND c.total_rounds > 0
                     GROUP BY c.championship_id
                     ORDER BY
                         CASE WHEN c.start_date IS NULL THEN 1 ELSE 0 END,
@@ -1691,57 +1571,53 @@ class ACCWebDashboard:
                 tier_championships = cursor.fetchall()
 
                 if tier_championships:
-                    if total_tiers == 1:
-                        # Lega a tier singolo: auto-seleziona il primo (unico) tier senza selectbox
-                        selected_tier_info = tier_championships[0]
+                    # Mostra sempre selectbox per selezione tier
+                    tier_options = ["Select a tier..."]
+                    tier_map = {}
+                    default_tier_index = 1  # Default al primo tier (dopo "Select a tier...")
+
+                    for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, champ_type, standings_count) in enumerate(tier_championships):
+                        # Formato display
+                        status_str = " ✅" if is_completed else " 🔄"
+                        date_str = f" ({date_start[:10]})" if date_start else ""
+                        if champ_type == 'tier' and tier_num:
+                            display_name = f"Tier {tier_num} - {champ_name}{date_str}{status_str}"
+                        else:
+                            display_name = f"{champ_name}{date_str}{status_str}"
+
+                        tier_options.append(display_name)
+                        tier_map[display_name] = champ_id
+
+                    # Trova default index: più recente con classifica calcolata
+                    first_with_standings_idx = None
+
+                    for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, champ_type, standings_count) in enumerate(tier_championships):
+                        if standings_count > 0 and first_with_standings_idx is None:
+                            first_with_standings_idx = idx + 1  # +1 per "Select a tier..."
+                            break
+
+                    # Seleziona il più recente con standing, altrimenti il primo in lista
+                    if first_with_standings_idx is not None:
+                        default_tier_index = first_with_standings_idx
                     else:
-                        # Più tier: mostra selectbox per selezione
-                        tier_options = ["Select a tier..."]
-                        tier_map = {}
-                        default_tier_index = 1  # Default al primo tier (dopo "Select a tier...")
+                        default_tier_index = 1  # Fallback al primo tier
 
-                        for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, champ_type, standings_count) in enumerate(tier_championships):
-                            # Formato display
-                            status_str = " ✅" if is_completed else " 🔄"
-                            date_str = f" ({date_start[:10]})" if date_start else ""
-                            if champ_type == 'tier' and tier_num:
-                                display_name = f"Tier {tier_num} - {champ_name}{date_str}{status_str}"
-                            else:
-                                display_name = f"{champ_name}{date_str}{status_str}"
+                    # Selectbox tier
+                    selected_tier = st.selectbox(
+                        "🏆 Select a Tier:",
+                        options=tier_options,
+                        index=default_tier_index,
+                        key="tier_select"
+                    )
 
-                            tier_options.append(display_name)
-                            tier_map[display_name] = champ_id
-
-                        # Trova default index: più recente con classifica calcolata
-                        first_with_standings_idx = None
-
-                        for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, champ_type, standings_count) in enumerate(tier_championships):
-                            if standings_count > 0 and first_with_standings_idx is None:
-                                first_with_standings_idx = idx + 1  # +1 per "Select a tier..."
-                                break
-
-                        # Seleziona il più recente con standing, altrimenti il primo in lista
-                        if first_with_standings_idx is not None:
-                            default_tier_index = first_with_standings_idx
-                        else:
-                            default_tier_index = 1  # Fallback al primo tier
-
-                        # Selectbox tier
-                        selected_tier = st.selectbox(
-                            "🏆 Select a Tier:",
-                            options=tier_options,
-                            index=default_tier_index,
-                            key="tier_select"
+                    if selected_tier and selected_tier != "Select a tier...":
+                        tier_championship_id = tier_map[selected_tier]
+                        selected_tier_info = next(
+                            (t for t in tier_championships if t[0] == tier_championship_id),
+                            None
                         )
-
-                        if selected_tier and selected_tier != "Select a tier...":
-                            tier_championship_id = tier_map[selected_tier]
-                            selected_tier_info = next(
-                                (t for t in tier_championships if t[0] == tier_championship_id),
-                                None
-                            )
-                        else:
-                            selected_tier_info = None
+                    else:
+                        selected_tier_info = None
 
                     if selected_tier_info:
                         champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, champ_type, standings_count = selected_tier_info
@@ -1882,185 +1758,187 @@ class ACCWebDashboard:
 
                         else:
                             st.warning("⚠️ Tier championship leaderboard not yet calculated")
+
+                        # Grafico andamento partecipanti giornalieri
+                        st.markdown("---")
+                        st.subheader("📈 Daily Participation Trend")
+
+                        try:
+                            # Query date fine competizioni del tier selezionato
+                            cursor.execute("""
+                                SELECT DISTINCT c.date_end, c.name
+                                FROM competitions c
+                                WHERE c.championship_id = ?
+                                  AND c.date_end IS NOT NULL
+                                ORDER BY c.date_end ASC
+                            """, (champ_id,))
+
+                            competition_end_dates = cursor.fetchall()
+
+                            # Costruisce filtro date sul range del tier (date_start/date_end del championship)
+                            date_params = [champ_id, champ_id]
+                            date_conditions = ""
+                            if date_start:
+                                date_conditions += "\n                              AND DATE(s.session_date) >= DATE(?)"
+                                date_params.append(date_start[:10])
+                            if date_end:
+                                date_conditions += "\n                              AND DATE(s.session_date) <= DATE(?)"
+                                date_params.append(date_end[:10])
+
+                            # Query partecipanti per giorno: registrati (in championship_enrollments) vs guest
+                            cursor.execute(f"""
+                                SELECT
+                                    SUBSTR(s.filename, 1, 6) as date_str,
+                                    COUNT(DISTINCT CASE WHEN ce.driver_id IS NOT NULL THEN sr.driver_id END) as registered_participants,
+                                    COUNT(DISTINCT CASE WHEN ce.driver_id IS NULL THEN sr.driver_id END) as guest_participants
+                                FROM sessions s
+                                JOIN session_results sr ON s.session_id = sr.session_id
+                                LEFT JOIN championship_enrollments ce
+                                    ON sr.driver_id = ce.driver_id AND ce.championship_id = ?
+                                WHERE s.competition_id IN (
+                                    SELECT competition_id FROM competitions WHERE championship_id = ?
+                                ){date_conditions}
+                                GROUP BY SUBSTR(s.filename, 1, 6)
+                                ORDER BY date_str ASC
+                            """, date_params)
+
+                            participation_data = cursor.fetchall()
+
+                            if participation_data:
+                                # Converti i dati per il grafico
+                                dates = []
+                                registered = []
+                                guests = []
+
+                                for date_str, reg_count, guest_count in participation_data:
+                                    # Converti YYMMDD in formato leggibile
+                                    try:
+                                        # Aggiungi "20" per completare l'anno (es. 251015 -> 20251015)
+                                        full_date_str = "20" + date_str
+                                        date_obj = datetime.strptime(full_date_str, "%Y%m%d")
+                                        formatted_date = date_obj.strftime("%d/%m/%Y")
+                                        dates.append(formatted_date)
+                                        registered.append(reg_count if reg_count else 0)
+                                        guests.append(guest_count if guest_count else 0)
+                                    except:
+                                        # Se la conversione fallisce, usa la stringa originale
+                                        dates.append(date_str)
+                                        registered.append(reg_count if reg_count else 0)
+                                        guests.append(guest_count if guest_count else 0)
+
+                                # Crea il grafico con Plotly
+                                fig = go.Figure()
+
+                                # Linea per piloti registrati - BLU SOLIDA
+                                fig.add_trace(go.Scatter(
+                                    x=dates,
+                                    y=registered,
+                                    mode='lines+markers',
+                                    name='Registered Drivers',
+                                    line=dict(color='#007bff', width=3),
+                                    marker=dict(size=8, color='#007bff'),
+                                    hovertemplate='<b>Registered:</b> %{y}<extra></extra>'
+                                ))
+
+                                # Linea per piloti guest - ROSSO LONGDASH
+                                fig.add_trace(go.Scatter(
+                                    x=dates,
+                                    y=guests,
+                                    mode='lines+markers',
+                                    name='Guest Drivers',
+                                    line=dict(color='#dc3545', width=3, dash='longdash'),
+                                    marker=dict(size=8, color='#dc3545', symbol='diamond'),
+                                    hovertemplate='<b>Guests:</b> %{y}<extra></extra>'
+                                ))
+
+                                # Aggiungi shapes (linee verticali) per le date di fine competizione
+                                shapes = []
+                                added_dates = set()  # Per evitare duplicati
+                                for date_end_comp, comp_name in competition_end_dates:
+                                    try:
+                                        # Converti date_end (YYYY-MM-DD) in formato visualizzato nel grafico (dd/mm/YYYY)
+                                        if 'T' in date_end_comp or 'Z' in date_end_comp:
+                                            date_obj = datetime.fromisoformat(date_end_comp.replace('Z', '+00:00'))
+                                        else:
+                                            date_obj = datetime.strptime(date_end_comp, "%Y-%m-%d")
+
+                                        formatted_date = date_obj.strftime("%d/%m/%Y")
+
+                                        # Aggiungi shape solo se la data esiste nell'asse X e non è già presente
+                                        if formatted_date in dates and formatted_date not in added_dates:
+                                            shapes.append(dict(
+                                                type="line",
+                                                x0=formatted_date,
+                                                x1=formatted_date,
+                                                y0=0,
+                                                y1=1,
+                                                yref="paper",
+                                                line=dict(
+                                                    color="rgba(255, 165, 0, 0.6)",
+                                                    width=2,
+                                                    dash="dash"
+                                                )
+                                            ))
+                                            added_dates.add(formatted_date)
+                                    except Exception as e:
+                                        # Se la conversione fallisce, salta questa data
+                                        pass
+
+                                fig.update_layout(
+                                    title={
+                                        'text': 'Daily Unique Participants (Registered vs Guests)',
+                                        'x': 0.5,
+                                        'xanchor': 'center'
+                                    },
+                                    xaxis_title="Date",
+                                    yaxis_title="Number of Unique Participants",
+                                    hovermode='x unified',
+                                    template='plotly_dark',
+                                    height=500,
+                                    showlegend=True,
+                                    legend=dict(
+                                        orientation="h",
+                                        yanchor="bottom",
+                                        y=1.02,
+                                        xanchor="right",
+                                        x=1
+                                    ),
+                                    xaxis=dict(
+                                        tickangle=-45,
+                                        tickmode='auto',
+                                        nticks=20
+                                    ),
+                                    yaxis=dict(
+                                        rangemode='tozero'
+                                    ),
+                                    shapes=shapes
+                                )
+
+                                st.plotly_chart(fig, width='stretch')
+
+                                # Statistiche aggiuntive
+                                col1, col2, col3, col4 = st.columns(4)
+                                with col1:
+                                    avg_registered = sum(registered) / len(registered)
+                                    st.metric("Avg Registered", f"{avg_registered:.1f}")
+                                with col2:
+                                    avg_guests = sum(guests) / len(guests)
+                                    st.metric("Avg Guests", f"{avg_guests:.1f}")
+                                with col3:
+                                    max_registered = max(registered)
+                                    st.metric("Peak Registered", f"{max_registered}")
+                                with col4:
+                                    max_guests = max(guests)
+                                    st.metric("Peak Guests", f"{max_guests}")
+
+                            else:
+                                st.info("ℹ️ No participation data available for this tier yet")
+
+                        except Exception as e:
+                            st.error(f"❌ Error loading participation trend: {e}")
+
                 else:
                     st.info("ℹ️ No tier championships found for this league")
-
-                # Grafico andamento partecipanti giornalieri
-                st.markdown("---")
-                st.subheader("📈 Daily Participation Trend")
-
-                try:
-                    # Query per ottenere le date di fine competizione
-                    cursor.execute("""
-                        SELECT DISTINCT c.date_end, c.name
-                        FROM competitions c
-                        WHERE c.championship_id IN (
-                            SELECT championship_id
-                            FROM championships
-                            WHERE league_id = ?
-                        )
-                        AND c.date_end IS NOT NULL
-                        ORDER BY c.date_end ASC
-                    """, (selected_league_id,))
-
-                    competition_end_dates = cursor.fetchall()
-
-                    # Query per contare partecipanti unici per giorno (separati per registrati e guest)
-                    cursor.execute("""
-                        SELECT
-                            SUBSTR(s.filename, 1, 6) as date_str,
-                            COUNT(DISTINCT CASE WHEN d.trust_level > 0 THEN sr.driver_id END) as registered_participants,
-                            COUNT(DISTINCT CASE WHEN d.trust_level = 0 THEN sr.driver_id END) as guest_participants
-                        FROM sessions s
-                        JOIN session_results sr ON s.session_id = sr.session_id
-                        JOIN drivers d ON sr.driver_id = d.driver_id
-                        WHERE s.competition_id IN (
-                            SELECT competition_id
-                            FROM competitions
-                            WHERE championship_id IN (
-                                SELECT championship_id
-                                FROM championships
-                                WHERE league_id = ?
-                            )
-                        )
-                        GROUP BY SUBSTR(s.filename, 1, 6)
-                        ORDER BY date_str ASC
-                    """, (selected_league_id,))
-
-                    participation_data = cursor.fetchall()
-
-                    if participation_data:
-                        # Converti i dati per il grafico
-                        dates = []
-                        registered = []
-                        guests = []
-
-                        for date_str, reg_count, guest_count in participation_data:
-                            # Converti YYMMDD in formato leggibile
-                            try:
-                                # Aggiungi "20" per completare l'anno (es. 251015 -> 20251015)
-                                full_date_str = "20" + date_str
-                                date_obj = datetime.strptime(full_date_str, "%Y%m%d")
-                                formatted_date = date_obj.strftime("%d/%m/%Y")
-                                dates.append(formatted_date)
-                                registered.append(reg_count if reg_count else 0)
-                                guests.append(guest_count if guest_count else 0)
-                            except:
-                                # Se la conversione fallisce, usa la stringa originale
-                                dates.append(date_str)
-                                registered.append(reg_count if reg_count else 0)
-                                guests.append(guest_count if guest_count else 0)
-
-                        # Crea il grafico con Plotly
-                        fig = go.Figure()
-
-                        # Linea per piloti registrati - BLU SOLIDA
-                        fig.add_trace(go.Scatter(
-                            x=dates,
-                            y=registered,
-                            mode='lines+markers',
-                            name='Registered Drivers',
-                            line=dict(color='#007bff', width=3),
-                            marker=dict(size=8, color='#007bff'),
-                            hovertemplate='<b>Registered:</b> %{y}<extra></extra>'
-                        ))
-
-                        # Linea per piloti guest - ROSSO LONGDASH
-                        fig.add_trace(go.Scatter(
-                            x=dates,
-                            y=guests,
-                            mode='lines+markers',
-                            name='Guest Drivers',
-                            line=dict(color='#dc3545', width=3, dash='longdash'),
-                            marker=dict(size=8, color='#dc3545', symbol='diamond'),
-                            hovertemplate='<b>Guests:</b> %{y}<extra></extra>'
-                        ))
-
-                        # Aggiungi shapes (linee verticali) per le date di fine competizione
-                        shapes = []
-                        added_dates = set()  # Per evitare duplicati
-                        for date_end, comp_name in competition_end_dates:
-                            try:
-                                # Converti date_end (YYYY-MM-DD) in formato visualizzato nel grafico (dd/mm/YYYY)
-                                if 'T' in date_end or 'Z' in date_end:
-                                    date_obj = datetime.fromisoformat(date_end.replace('Z', '+00:00'))
-                                else:
-                                    date_obj = datetime.strptime(date_end, "%Y-%m-%d")
-
-                                formatted_date = date_obj.strftime("%d/%m/%Y")
-
-                                # Aggiungi shape solo se la data esiste nell'asse X e non è già presente
-                                if formatted_date in dates and formatted_date not in added_dates:
-                                    shapes.append(dict(
-                                        type="line",
-                                        x0=formatted_date,
-                                        x1=formatted_date,
-                                        y0=0,
-                                        y1=1,
-                                        yref="paper",
-                                        line=dict(
-                                            color="rgba(255, 165, 0, 0.6)",
-                                            width=2,
-                                            dash="dash"
-                                        )
-                                    ))
-                                    added_dates.add(formatted_date)
-                            except Exception as e:
-                                # Se la conversione fallisce, salta questa data
-                                pass
-
-                        fig.update_layout(
-                            title={
-                                'text': 'Daily Unique Participants (Registered vs Guests)',
-                                'x': 0.5,
-                                'xanchor': 'center'
-                            },
-                            xaxis_title="Date",
-                            yaxis_title="Number of Unique Participants",
-                            hovermode='x unified',
-                            template='plotly_dark',
-                            height=500,
-                            showlegend=True,
-                            legend=dict(
-                                orientation="h",
-                                yanchor="bottom",
-                                y=1.02,
-                                xanchor="right",
-                                x=1
-                            ),
-                            xaxis=dict(
-                                tickangle=-45,
-                                tickmode='auto',
-                                nticks=20
-                            ),
-                            yaxis=dict(
-                                rangemode='tozero'
-                            ),
-                            shapes=shapes
-                        )
-
-                        st.plotly_chart(fig, width='stretch')
-
-                        # Statistiche aggiuntive
-                        col1, col2, col3, col4 = st.columns(4)
-                        with col1:
-                            avg_registered = sum(registered) / len(registered)
-                            st.metric("Avg Registered", f"{avg_registered:.1f}")
-                        with col2:
-                            avg_guests = sum(guests) / len(guests)
-                            st.metric("Avg Guests", f"{avg_guests:.1f}")
-                        with col3:
-                            max_registered = max(registered)
-                            st.metric("Peak Registered", f"{max_registered}")
-                        with col4:
-                            max_guests = max(guests)
-                            st.metric("Peak Guests", f"{max_guests}")
-
-                    else:
-                        st.info("ℹ️ No participation data available for this league yet")
-
-                except Exception as e:
-                    st.error(f"❌ Error loading participation trend: {e}")
 
             conn.close()
 
@@ -2327,10 +2205,6 @@ class ACCWebDashboard:
             st.subheader("📋 Sessions List Summary")
             self.show_sessions_summary_table(sessions_list, sessions_stats)
 
-            # Grafico partecipazione giornaliera (solo in General Summary)
-            st.markdown("---")
-            self.show_daily_participation_chart(date_from, date_to)
-
         elif selected_session_option in session_map:
             # Mostra dettagli della sessione specifica
             selected_session_id = session_map[selected_session_option]
@@ -2445,164 +2319,6 @@ class ACCWebDashboard:
             - 📍 **Last Session Track:** {sessions_stats['last_session_track']}
             - 📅 **Last Session Date:** {last_date_str}
             """)
-
-    def show_daily_participation_chart(self, date_from: date, date_to: date):
-        """Mostra grafico andamento partecipazione giornaliera nel periodo selezionato"""
-        st.subheader("📈 Daily Participation Trend")
-
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            # Converti date per query SQL
-            date_from_str = date_from.strftime('%Y-%m-%d')
-            date_to_str = (date_to + timedelta(days=1)).strftime('%Y-%m-%d')
-
-            # Query per contare partecipanti unici per giorno (separati per registrati e guest) + numero sessioni
-            cursor.execute("""
-                SELECT
-                    DATE(s.session_date) as session_day,
-                    COUNT(DISTINCT CASE WHEN d.trust_level > 0 THEN sr.driver_id END) as registered_participants,
-                    COUNT(DISTINCT CASE WHEN d.trust_level = 0 THEN sr.driver_id END) as guest_participants,
-                    COUNT(DISTINCT s.session_id) as total_sessions
-                FROM sessions s
-                JOIN session_results sr ON s.session_id = sr.session_id
-                JOIN drivers d ON sr.driver_id = d.driver_id
-                WHERE DATE(s.session_date) >= ? AND DATE(s.session_date) < ?
-                GROUP BY DATE(s.session_date)
-                ORDER BY session_day ASC
-            """, (date_from_str, date_to_str))
-
-            participation_data = cursor.fetchall()
-            conn.close()
-
-            if participation_data:
-                # Converti i dati per il grafico
-                dates = []
-                registered = []
-                guests = []
-                sessions = []
-
-                for session_day, reg_count, guest_count, session_count in participation_data:
-                    # Formatta data per visualizzazione
-                    try:
-                        date_obj = datetime.strptime(session_day, "%Y-%m-%d")
-                        formatted_date = date_obj.strftime("%d/%m/%Y")
-                        dates.append(formatted_date)
-                        registered.append(reg_count if reg_count else 0)
-                        guests.append(guest_count if guest_count else 0)
-                        sessions.append(session_count if session_count else 0)
-                    except:
-                        # Se la conversione fallisce, usa la stringa originale
-                        dates.append(session_day)
-                        registered.append(reg_count if reg_count else 0)
-                        guests.append(guest_count if guest_count else 0)
-                        sessions.append(session_count if session_count else 0)
-
-                # Crea il grafico con Plotly
-                fig = go.Figure()
-
-                # Linea per piloti registrati (asse Y sinistro) - BLU DOT (punteggiata)
-                fig.add_trace(go.Scatter(
-                    x=dates,
-                    y=registered,
-                    mode='lines+markers',
-                    name='Registered Drivers',
-                    line=dict(color='#007bff', width=3, dash='dot'),
-                    marker=dict(size=8, color='#007bff'),
-                    hovertemplate='<b>Registered:</b> %{y}<extra></extra>',
-                    yaxis='y'
-                ))
-
-                # Linea per piloti guest (asse Y sinistro) - ROSSO SOLIDA
-                fig.add_trace(go.Scatter(
-                    x=dates,
-                    y=guests,
-                    mode='lines+markers',
-                    name='Guest Drivers',
-                    line=dict(color='#dc3545', width=3),
-                    marker=dict(size=8, color='#dc3545', symbol='diamond'),
-                    hovertemplate='<b>Guests:</b> %{y}<extra></extra>',
-                    yaxis='y'
-                ))
-
-                # Linea per numero sessioni (asse Y destro) - VERDE SOLIDA
-                fig.add_trace(go.Scatter(
-                    x=dates,
-                    y=sessions,
-                    mode='lines+markers',
-                    name='Sessions',
-                    line=dict(color='#28a745', width=2),
-                    marker=dict(size=6, color='#28a745', symbol='square'),
-                    hovertemplate='<b>Sessions:</b> %{y}<extra></extra>',
-                    yaxis='y2'
-                ))
-
-                fig.update_layout(
-                    title={
-                        'text': 'Daily Participation & Sessions Trend',
-                        'x': 0.5,
-                        'xanchor': 'center'
-                    },
-                    xaxis_title="Date",
-                    hovermode='x unified',
-                    template='plotly_dark',
-                    height=500,
-                    showlegend=True,
-                    legend=dict(
-                        orientation="h",
-                        yanchor="bottom",
-                        y=1.02,
-                        xanchor="right",
-                        x=1
-                    ),
-                    xaxis=dict(
-                        tickangle=-45,
-                        tickmode='auto',
-                        nticks=20
-                    ),
-                    yaxis=dict(
-                        title="Number of Unique Participants",
-                        rangemode='tozero',
-                        side='left'
-                    ),
-                    yaxis2=dict(
-                        title="Number of Sessions",
-                        rangemode='tozero',
-                        side='right',
-                        overlaying='y',
-                        showgrid=False
-                    )
-                )
-
-                st.plotly_chart(fig, width='stretch')
-
-                # Statistiche aggiuntive
-                col1, col2, col3, col4, col5, col6 = st.columns(6)
-                with col1:
-                    avg_registered = sum(registered) / len(registered) if registered else 0
-                    st.metric("Avg Registered", f"{avg_registered:.1f}")
-                with col2:
-                    max_registered = max(registered) if registered else 0
-                    st.metric("Peak Registered", f"{max_registered}")
-                with col3:
-                    avg_guests = sum(guests) / len(guests) if guests else 0
-                    st.metric("Avg Guests", f"{avg_guests:.1f}")
-                with col4:
-                    max_guests = max(guests) if guests else 0
-                    st.metric("Peak Guests", f"{max_guests}")
-                with col5:
-                    avg_sessions = sum(sessions) / len(sessions) if sessions else 0
-                    st.metric("Avg Sessions/Day", f"{avg_sessions:.1f}")
-                with col6:
-                    total_sessions = sum(sessions) if sessions else 0
-                    st.metric("Total Sessions", f"{total_sessions}")
-
-            else:
-                st.info("ℹ️ No participation data available for the selected period")
-
-        except Exception as e:
-            st.error(f"❌ Error loading participation trend: {e}")
 
     def show_session_details(self, session_id: str):
         """Mostra dettagli completi della sessione selezionata (come nel 4Fun report)"""
@@ -2874,7 +2590,7 @@ class ACCWebDashboard:
                 WHERE l.is_valid_for_best = 1
                   AND l.lap_time > 0
                   AND s.competition_id IS NOT NULL
-                  AND d.trust_level > 0
+                  AND d.trust_level > 1
                 GROUP BY s.track_name
             )
             SELECT
@@ -2895,7 +2611,7 @@ class ACCWebDashboard:
             LEFT JOIN championships ch ON c.championship_id = ch.championship_id
             WHERE l.is_valid_for_best = 1
               AND s.competition_id IS NOT NULL
-              AND d.trust_level > 0
+              AND d.trust_level > 1
             GROUP BY tr.track_name
             ORDER BY tr.best_lap ASC
         '''
@@ -2925,7 +2641,7 @@ class ACCWebDashboard:
                   AND l.is_valid_for_best = 1
                   AND l.lap_time > 0
                   AND s.competition_id IS NOT NULL
-                  AND d.trust_level > 0
+                  AND d.trust_level > 1
             '''
 
             cursor.execute(query, (track_name,))
@@ -2944,7 +2660,7 @@ class ACCWebDashboard:
                       AND l.lap_time = ?
                       AND l.is_valid_for_best = 1
                       AND s.competition_id IS NOT NULL
-                      AND d.trust_level > 0
+                      AND d.trust_level > 1
                     LIMIT 1
                 '''
 
@@ -3003,7 +2719,7 @@ class ACCWebDashboard:
                   AND l.is_valid_for_best = 1
                   AND l.lap_time > 0
                   AND s.competition_id IS NOT NULL
-                  AND d.trust_level > 0
+                  AND d.trust_level > 1
                 GROUP BY l.driver_id
             )
             SELECT
@@ -3025,7 +2741,7 @@ class ACCWebDashboard:
             WHERE s.track_name = ?
               AND l.is_valid_for_best = 1
               AND s.competition_id IS NOT NULL
-              AND d.trust_level > 0
+              AND d.trust_level > 1
             GROUP BY dbl.driver_id
             ORDER BY dbl.best_lap ASC
             LIMIT 50
@@ -3407,10 +3123,7 @@ class ACCWebDashboard:
             query = '''
                 SELECT DISTINCT d.driver_id, d.last_name, d.short_name
                 FROM drivers d
-                WHERE d.trust_level > 0
-                AND EXISTS (
-                    SELECT 1 FROM laps l WHERE l.driver_id = d.driver_id
-                )
+                WHERE d.trust_level = 2
                 ORDER BY LOWER(d.last_name)
             '''
             cursor.execute(query)
@@ -3433,49 +3146,27 @@ class ACCWebDashboard:
         """Ottiene riepilogo generale di tutti i piloti"""
         
         query = '''
-            SELECT 
+            SELECT
                 d.driver_id,
                 d.last_name as driver_name,
                 d.preferred_race_number as number,
                 COALESCE(champ.championships, 0) as championships,
                 COALESCE(champ.wins, 0) as wins,
                 COALESCE(champ.poles, 0) as poles,
-                COALESCE(champ.podiums, 0) as podiums,
-                COALESCE(records.records, 0) as records
+                COALESCE(champ.podiums, 0) as podiums
             FROM drivers d
             LEFT JOIN (
                 -- Statistiche da championship_standings
-                SELECT 
+                SELECT
                     driver_id,
                     SUM(CASE WHEN position = 1 THEN 1 ELSE 0 END) as championships,
                     SUM(wins) as wins,
                     SUM(poles) as poles,
                     SUM(podiums) as podiums
-                FROM championship_standings 
+                FROM championship_standings
                 GROUP BY driver_id
             ) champ ON d.driver_id = champ.driver_id
-            LEFT JOIN (
-                -- Conteggio record ufficiali detenuti
-                SELECT 
-                    l.driver_id,
-                    COUNT(DISTINCT s.track_name) as records
-                FROM laps l
-                JOIN sessions s ON l.session_id = s.session_id
-                WHERE l.is_valid_for_best = 1 AND l.lap_time > 0
-                AND l.lap_time = (
-                    SELECT MIN(l2.lap_time) 
-                    FROM laps l2 
-                    JOIN sessions s2 ON l2.session_id = s2.session_id 
-                    WHERE s2.track_name = s.track_name 
-                    AND l2.is_valid_for_best = 1 
-                    AND l2.lap_time > 0
-                )
-                GROUP BY l.driver_id
-            ) records ON d.driver_id = records.driver_id
-            WHERE d.trust_level > 0
-            AND EXISTS (
-                SELECT 1 FROM laps l WHERE l.driver_id = d.driver_id
-            )
+            WHERE d.trust_level = 2
             ORDER BY d.last_name
         '''
         
@@ -3698,15 +3389,14 @@ class ACCWebDashboard:
         summary_display = summary_display.sort_values('driver_name_lower', ascending=True).drop('driver_name_lower', axis=1)
         
         # Seleziona colonne finali con i nomi desiderati
-        columns_to_show = ['driver_name', 'number', 'championships', 'wins', 'poles', 'podiums', 'records']
+        columns_to_show = ['driver_name', 'number', 'championships', 'wins', 'poles', 'podiums']
         column_names = {
             'driver_name': '👤 Driver Name',
             'number': '🏁 Car Number',
             'championships': '🏆 Titles Won',
             'wins': '🥇 Wins',
             'poles': '🚩 Poles',
-            'podiums': '🏅 Podiums',
-            'records': '📊 Records'
+            'podiums': '🏅 Podiums'
         }
         
         final_display = summary_display[columns_to_show].copy()
@@ -3725,18 +3415,14 @@ class ACCWebDashboard:
         # Info aggiuntive
         total_drivers = len(summary_display)
         total_championships = summary_display['championships'].sum()
-        total_records = summary_display['records'].sum()
-        
-        col1, col2, col3 = st.columns(3)
-        
+
+        col1, col2 = st.columns(2)
+
         with col1:
             st.info(f"👥 **{total_drivers}** registered drivers")
-        
+
         with col2:
             st.success(f"🏆 **{int(total_championships)}** total championships won")
-        
-        with col3:
-            st.info(f"📊 **{int(total_records)}** track records held")
     
     def show_driver_details(self, driver_data: Dict):
         """Mostra dettagli completi per il pilota selezionato"""
@@ -3969,65 +3655,111 @@ class ACCWebDashboard:
             return
 
         # Formatta tempi per hover
+        import numpy as np
+
         df['time_formatted'] = df['best_lap'].apply(
             lambda x: self.format_lap_time(x) if pd.notna(x) else "N/A"
         )
 
-        # Asse X: data formattata (una sola volta per giorno)
+        # Asse X: data formattata
         df['x_label'] = df['session_date'].apply(
             lambda d: self.format_session_date(d) if pd.notna(d) else "N/A"
         )
 
-        import numpy as np
+        # Calcola delta rispetto alla sessione precedente (in ms)
+        df['delta'] = df['best_lap'].diff()
 
+        # Colori marcatori: grigio=primo, verde=miglioramento, rosso=peggioramento
+        marker_colors = []
+        for i, delta in enumerate(df['delta']):
+            if i == 0:
+                marker_colors.append('#aaaaaa')
+            elif delta < 0:
+                marker_colors.append('#28a745')
+            else:
+                marker_colors.append('#dc3545')
+
+        # Testo delta sulle annotazioni
+        def fmt_delta(delta):
+            if pd.isna(delta):
+                return ""
+            secs = abs(delta) / 1000
+            sign = "▼" if delta < 0 else "▲"
+            return f"{sign} {secs:.3f}s"
+
+        df['delta_text'] = df['delta'].apply(fmt_delta)
+
+        # Personal Best index
+        pb_idx = df['best_lap'].idxmin()
+        pb_x = df.index.get_loc(pb_idx)
+
+        x_vals = list(range(len(df)))
         fig = go.Figure()
 
-        # Traccia unica con tutti i punti in ordine
-        fig.add_trace(go.Scatter(
-            x=list(range(len(df))),
-            y=df['best_lap'],
-            mode='lines+markers',
-            name='Best Lap',
-            line=dict(color='#007bff', width=2),
-            marker=dict(size=10, color='#007bff'),
-            customdata=df[['time_formatted', 'x_label']].values,
-            hovertemplate=(
-                '<b>%{customdata[0]}</b><br>'
-                '%{customdata[1]}<extra></extra>'
-            )
-        ))
-
-        # Linea di tendenza
+        # Linea di tendenza (sotto gli altri layer)
         if len(df) >= 3:
             x_num = np.arange(len(df))
             y_vals = df['best_lap'].values
             coeffs = np.polyfit(x_num, y_vals, 1)
             trend_y = np.polyval(coeffs, x_num)
             fig.add_trace(go.Scatter(
-                x=list(range(len(df))),
+                x=x_vals,
                 y=trend_y,
                 mode='lines',
                 name='Trend',
-                line=dict(color='rgba(255,255,255,0.4)', width=2, dash='dash'),
+                line=dict(color='rgba(255,255,255,0.3)', width=2, dash='dash'),
                 hoverinfo='skip'
             ))
 
-        # Tick Y personalizzati con tempi formattati
+        # Linea principale con marcatori colorati
+        customdata = df[['time_formatted', 'x_label', 'delta_text']].values
+        fig.add_trace(go.Scatter(
+            x=x_vals,
+            y=df['best_lap'],
+            mode='lines+markers+text',
+            name='Best Lap',
+            line=dict(color='rgba(100,149,237,0.6)', width=2),
+            marker=dict(size=12, color=marker_colors, line=dict(width=1, color='white')),
+            text=df['delta_text'],
+            textposition='top center',
+            textfont=dict(size=11),
+            customdata=customdata,
+            hovertemplate=(
+                '<b>%{customdata[0]}</b><br>'
+                '%{customdata[1]}<br>'
+                '%{customdata[2]}<extra></extra>'
+            )
+        ))
+
+        # Marcatore Personal Best (stella dorata)
+        fig.add_trace(go.Scatter(
+            x=[pb_x],
+            y=[df['best_lap'].iloc[pb_x]],
+            mode='markers+text',
+            name='Personal Best',
+            marker=dict(size=18, color='gold', symbol='star', line=dict(width=1, color='white')),
+            text=[f"PB {df['time_formatted'].iloc[pb_x]}"],
+            textposition='bottom center',
+            textfont=dict(size=12, color='gold'),
+            hovertemplate=f"<b>Personal Best</b><br>{df['time_formatted'].iloc[pb_x]}<extra></extra>"
+        ))
+
+        # Tick Y con tempi formattati
         y_min = df['best_lap'].min()
         y_max = df['best_lap'].max()
-        margin = (y_max - y_min) * 0.1 if y_max > y_min else 1000
+        margin = (y_max - y_min) * 0.15 if y_max > y_min else 2000
         tick_values = np.linspace(y_min - margin, y_max + margin, 8)
         tick_texts = [self.format_lap_time(int(v)) for v in tick_values]
 
         fig.update_layout(
             title={
-                'text': f'Best Lap per Day — {selected_track}',
+                'text': f'Lap Time Trend — {selected_track}',
                 'x': 0.5,
                 'xanchor': 'center'
             },
             xaxis=dict(
                 title="Date",
-                tickvals=list(range(len(df))),
+                tickvals=x_vals,
                 ticktext=df['x_label'].tolist(),
                 tickangle=-45
             ),
@@ -4035,11 +3767,12 @@ class ACCWebDashboard:
                 title="Lap Time",
                 tickvals=tick_values.tolist(),
                 ticktext=tick_texts,
-                range=[y_min - margin, y_max + margin]
+                range=[y_min - margin, y_max + margin],
+                autorange='reversed'
             ),
             hovermode='closest',
             template='plotly_dark',
-            height=500,
+            height=520,
             showlegend=True,
             legend=dict(
                 orientation="h",
@@ -4050,7 +3783,27 @@ class ACCWebDashboard:
             )
         )
 
+        # Metriche sotto il grafico
         st.plotly_chart(fig, use_container_width=True)
+
+        total_sessions = len(df)
+        improvements = (df['delta'] < 0).sum()
+        regressions = (df['delta'] > 0).sum()
+        if len(df) > 1:
+            total_gain_ms = df['best_lap'].iloc[-1] - df['best_lap'].iloc[0]
+            total_gain_str = f"{'▼' if total_gain_ms < 0 else '▲'} {abs(total_gain_ms)/1000:.3f}s"
+        else:
+            total_gain_str = "N/A"
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Sessions", total_sessions)
+        with col2:
+            st.metric("Improvements", f"🟢 {improvements}")
+        with col3:
+            st.metric("Regressions", f"🔴 {regressions}")
+        with col4:
+            st.metric("First → Last", total_gain_str)
 
 
 def main():
