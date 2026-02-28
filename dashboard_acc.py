@@ -932,14 +932,14 @@ class ACCWebDashboard:
                     data.append({
                         "Pos": str(idx),
                         "Driver": driver,
-                        "Car": car_name if car_name else "-",
                         "Points": f"{points:.1f}" if points and points > 0 else "0.0",
                         "Best Lap": self.format_lap_time(lap_time),
                         "Gap": gap_str,
                         "S1": split1_str,
                         "S2": split2_str,
                         "S3": split3_str,
-                        "Date": date_str
+                        "Date": date_str,
+                        "Car": car_name if car_name else "-"
                     })
 
                 df = pd.DataFrame(data)
