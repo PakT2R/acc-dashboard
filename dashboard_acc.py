@@ -308,12 +308,13 @@ class ACCWebDashboard:
             
             # Query sicure con gestione errori
             safe_queries = {
-                'total_drivers': 'SELECT COUNT(*) FROM drivers WHERE trust_level > 1',
-                'guest_drivers': 'SELECT COUNT(*) FROM drivers WHERE trust_level = 0',
-                'total_leagues': 'SELECT COUNT(*) FROM leagues',
-                'total_sessions': 'SELECT COUNT(*) FROM sessions',
-                'total_valid_laps': '''SELECT COUNT(*) FROM laps
-                                     WHERE is_valid_for_best = 1''',
+                'total_drivers':       'SELECT COUNT(*) FROM drivers WHERE trust_level = 2',
+                'friend_drivers':      'SELECT COUNT(*) FROM drivers WHERE trust_level = 1',
+                'guest_drivers':       'SELECT COUNT(*) FROM drivers WHERE trust_level = 0',
+                'total_championships': 'SELECT COUNT(*) FROM championships WHERE is_completed = 1',
+                'total_competitions':  'SELECT COUNT(*) FROM competitions',
+                'total_sessions':      'SELECT COUNT(*) FROM sessions',
+                'total_valid_laps':    'SELECT COUNT(*) FROM laps WHERE is_valid_for_best = 1',
             }
             
             for key, query in safe_queries.items():
@@ -325,53 +326,6 @@ class ACCWebDashboard:
                     st.warning(f"⚠️ Error in query {key}: {e}")
                     stats[key] = 0
             
-            # Ultima gara di campionato
-            try:
-                cursor.execute('''SELECT MAX(date_start) FROM competitions 
-                                WHERE championship_id IS NOT NULL AND is_completed = 1''')
-                stats['last_championship_race'] = cursor.fetchone()[0]
-            except Exception:
-                stats['last_championship_race'] = None
-            
-            # Detentore del titolo - pilota vincitore dell'ultimo campionato completato
-            try:
-                cursor.execute('''
-                    SELECT d.last_name 
-                    FROM championship_standings cs
-                    JOIN drivers d ON cs.driver_id = d.driver_id
-                    JOIN championships ch ON cs.championship_id = ch.championship_id
-                    WHERE cs.position = 1 AND ch.is_completed = 1
-                    ORDER BY ch.end_date DESC
-                    LIMIT 1
-                ''')
-                result = cursor.fetchone()
-                stats['title_holder'] = result[0] if result else None
-            except Exception:
-                stats['title_holder'] = None
-            
-            # Prossima competizione prevista
-            try:
-                cursor.execute('''
-                    SELECT c.name, c.date_start, c.track_name, ch.name as championship_name
-                    FROM competitions c
-                    LEFT JOIN championships ch ON c.championship_id = ch.championship_id
-                    WHERE c.is_completed = 0 AND c.date_start IS NOT NULL
-                    ORDER BY c.date_start ASC
-                    LIMIT 1
-                ''')
-                result = cursor.fetchone()
-                if result:
-                    stats['next_competition'] = {
-                        'name': result[0],
-                        'date': result[1],
-                        'track': result[2],
-                        'championship': result[3]
-                    }
-                else:
-                    stats['next_competition'] = None
-            except Exception:
-                stats['next_competition'] = None
-            
             conn.close()
             return stats
             
@@ -380,13 +334,12 @@ class ACCWebDashboard:
             # Ritorna statistiche vuote invece di crashare
             return {
                 'total_drivers': 0,
+                'friend_drivers': 0,
                 'guest_drivers': 0,
-                'total_leagues': 0,
+                'total_championships': 0,
+                'total_competitions': 0,
                 'total_sessions': 0,
-                'total_valid_laps': 0,
-                'last_championship_race': None,
-                'title_holder': None,
-                'next_competition': None
+                'total_valid_laps': 0
             }
     
     def get_session_results(self, session_id: str) -> pd.DataFrame:
@@ -648,7 +601,6 @@ class ACCWebDashboard:
 <div style="background: rgba(255, 255, 255, 0.15); padding: 20px; border-radius: 12px; margin: 20px auto; max-width: 600px; backdrop-filter: blur(10px);">
 <p style="margin: 10px 0; font-size: 1.05rem; font-weight: 500;">⏱️ <strong>Time Attack</p>
 <p style="margin: 10px 0; font-size: 1.05rem; font-weight: 500;">📊 <strong>Standings and Results</p>
-<p style="margin: 10px 0; font-size: 1.05rem; font-weight: 500;">🏎️ <strong>Daily Casual Races</p>
 <p style="margin: 10px 0; font-size: 1.05rem; font-weight: 500;">📈 <strong>Best Recorded Laps</p>
 <p style="margin: 10px 0; font-size: 1.05rem; font-weight: 500;">👤 <strong>Driver Information</p>
 </div>
@@ -700,8 +652,10 @@ class ACCWebDashboard:
 
         st.markdown(f"""
         - 👥 **Registered Drivers:** {stats['total_drivers']}
+        - 🤝 **Friend Drivers:** {stats['friend_drivers']}
         - 👻 **Guest Drivers:** {stats['guest_drivers']}
-        - 🏆 **Leagues:** {stats['total_leagues']}
+        - 🏆 **Championships:** {stats['total_championships']}
+        - 🏁 **Competitions:** {stats['total_competitions']}
         - 🎮 **Total Sessions:** {stats['total_sessions']}
         - ⏱️ **Valid Laps:** {stats['total_valid_laps']}
         """)
@@ -2579,10 +2533,12 @@ class ACCWebDashboard:
             st.error(f"❌ Errore nel recupero piste: {e}")
             return []
     
-    def get_all_tracks_summary(self) -> pd.DataFrame:
+    def get_all_tracks_summary(self, include_friends: bool = False) -> pd.DataFrame:
         """Ottiene riepilogo record per tutte le piste (solo competizioni ufficiali e piloti TFL)"""
 
-        query = '''
+        trust_filter = "d.trust_level >= 1" if include_friends else "d.trust_level > 1"
+
+        query = f'''
             WITH track_records AS (
                 SELECT
                     s.track_name,
@@ -2593,7 +2549,7 @@ class ACCWebDashboard:
                 WHERE l.is_valid_for_best = 1
                   AND l.lap_time > 0
                   AND s.competition_id IS NOT NULL
-                  AND d.trust_level > 1
+                  AND {trust_filter}
                 GROUP BY s.track_name
             )
             SELECT
@@ -2614,7 +2570,7 @@ class ACCWebDashboard:
             LEFT JOIN championships ch ON c.championship_id = ch.championship_id
             WHERE l.is_valid_for_best = 1
               AND s.competition_id IS NOT NULL
-              AND d.trust_level > 1
+              AND {trust_filter}
             GROUP BY tr.track_name
             ORDER BY tr.best_lap ASC
         '''
@@ -2707,10 +2663,12 @@ class ACCWebDashboard:
             st.error(f"❌ Errore nel recupero statistiche pista: {e}")
             return {}
     
-    def get_track_leaderboard(self, track_name: str) -> pd.DataFrame:
+    def get_track_leaderboard(self, track_name: str, include_friends: bool = False) -> pd.DataFrame:
         """Ottiene classifica best laps per pista (solo competizioni ufficiali e piloti TFL)"""
 
-        query = '''
+        trust_filter = "d.trust_level >= 1" if include_friends else "d.trust_level > 1"
+
+        query = f'''
             WITH driver_best_laps AS (
                 SELECT
                     l.driver_id,
@@ -2722,7 +2680,7 @@ class ACCWebDashboard:
                   AND l.is_valid_for_best = 1
                   AND l.lap_time > 0
                   AND s.competition_id IS NOT NULL
-                  AND d.trust_level > 1
+                  AND {trust_filter}
                 GROUP BY l.driver_id
             )
             SELECT
@@ -2744,7 +2702,7 @@ class ACCWebDashboard:
             WHERE s.track_name = ?
               AND l.is_valid_for_best = 1
               AND s.competition_id IS NOT NULL
-              AND d.trust_level > 1
+              AND {trust_filter}
             GROUP BY dbl.driver_id
             ORDER BY dbl.best_lap ASC
             LIMIT 50
@@ -2796,21 +2754,23 @@ class ACCWebDashboard:
             </div>
             """, unsafe_allow_html=True)
 
+        include_friends = st.checkbox("🤝 Include Friend Drivers", value=False, key="best_laps_include_friends")
+
         if selected_track == "📊 General Summary":
             # Mostra riepilogo generale di tutte le piste
             st.markdown("---")
             st.subheader("🏁 Track Records Summary")
-            self.show_all_tracks_summary()
+            self.show_all_tracks_summary(include_friends)
 
         elif selected_track in tracks:
             # Mostra dettagli della pista specifica
             st.markdown("---")
-            self.show_track_details(selected_track)
+            self.show_track_details(selected_track, include_friends)
     
-    def show_all_tracks_summary(self):
+    def show_all_tracks_summary(self, include_friends: bool = False):
         """Mostra riepilogo record per tutte le piste (solo competizioni ufficiali e piloti TFL)"""
 
-        summary_df = self.get_all_tracks_summary()
+        summary_df = self.get_all_tracks_summary(include_friends)
         
         if summary_df.empty:
             st.warning("⚠️ No data available for tracks summary")
@@ -2870,23 +2830,18 @@ class ACCWebDashboard:
         final_display = summary_display[columns_to_show].copy()
         final_display.columns = [column_names[col] for col in columns_to_show]
 
-        # Configura larghezza colonne (in pixel)
-        column_config = {
-            'Track': st.column_config.TextColumn('Track', width=120),
-            'Record': st.column_config.TextColumn('Record', width=90),
-            'Driver': st.column_config.TextColumn('Driver', width=120),
-            'Type': st.column_config.TextColumn('Type', width=130),
-            'Session': st.column_config.TextColumn('Session', width=70),
-            'Date': st.column_config.TextColumn('Date', width=90),
-            'Competition': st.column_config.TextColumn('Competition', width='large')
-        }
-
         st.dataframe(
             final_display,
-            width='content',
+            width='stretch',
             hide_index=True,
             height=600,
-            column_config=column_config
+            column_config={
+                'Record':      st.column_config.TextColumn('Record',  width='small'),
+                'Type':        st.column_config.TextColumn('Type',    width='medium'),
+                'Session':     st.column_config.TextColumn('Session', width='small'),
+                'Date':        st.column_config.TextColumn('Date',    width='small'),
+                'Competition': st.column_config.TextColumn('Competition', width='large'),
+            }
         )
         
         # Info aggiuntive
@@ -2927,7 +2882,7 @@ class ACCWebDashboard:
         with col3:
             st.info(f"🎯 **{record_text}**")
     
-    def show_track_details(self, track_name: str):
+    def show_track_details(self, track_name: str, include_friends: bool = False):
         """Mostra dettagli completi per la pista selezionata (solo competizioni ufficiali e piloti TFL)"""
 
         # Header pista
@@ -2948,7 +2903,7 @@ class ACCWebDashboard:
         st.markdown("---")
         st.subheader("🏆 Best Laps Leaderboard by Driver")
 
-        leaderboard_df = self.get_track_leaderboard(track_name)
+        leaderboard_df = self.get_track_leaderboard(track_name, include_friends)
 
         if not leaderboard_df.empty:
             # Prepara display leaderboard
@@ -3015,25 +2970,21 @@ class ACCWebDashboard:
             final_display = leaderboard_display[columns_to_show].copy()
             final_display.columns = [column_names[col] for col in columns_to_show]
 
-            # Configura larghezza colonne (in pixel)
-            column_config = {
-                'Pos': st.column_config.TextColumn('Pos', width=50),
-                'Driver': st.column_config.TextColumn('Driver', width=120),
-                'Best Time': st.column_config.TextColumn('Best Time', width=90),
-                'Gap': st.column_config.TextColumn('Gap', width=70),
-                'Type': st.column_config.TextColumn('Type', width=130),
-                'Session': st.column_config.TextColumn('Session', width=70),
-                'Date': st.column_config.TextColumn('Date', width=90),
-                'Competition': st.column_config.TextColumn('Competition', width='large')
-            }
-
             # Mostra tabella con evidenziazione primi 3
             st.dataframe(
                 final_display,
-                width='content',
+                width='stretch',
                 hide_index=True,
                 height=500,
-                column_config=column_config
+                column_config={
+                    'Pos':        st.column_config.TextColumn('Pos',      width='small'),
+                    'Best Time':  st.column_config.TextColumn('Best Time',width='small'),
+                    'Gap':        st.column_config.TextColumn('Gap',      width='small'),
+                    'Type':       st.column_config.TextColumn('Type',     width='medium'),
+                    'Session':    st.column_config.TextColumn('Session',  width='small'),
+                    'Date':       st.column_config.TextColumn('Date',     width='small'),
+                    'Competition':st.column_config.TextColumn('Competition', width='large'),
+                }
             )
 
         else:
