@@ -745,7 +745,7 @@ class ACCWebDashboard:
             champ_map = {}
             champ_default = 0
             for idx, (champ_id, champ_name, is_completed, start_date) in enumerate(championships):
-                status_str = " ✅" if is_completed else " 🔄"
+                status_str = " ❎" if is_completed == -1 else (" ✅" if is_completed == 1 else " 🔄")
                 display = f"{champ_name}{status_str}"
                 champ_options.append(display)
                 champ_map[display] = champ_id
@@ -1077,7 +1077,8 @@ class ACCWebDashboard:
                     s.session_order,
                     s.total_drivers,
                     s.best_lap_overall,
-                    d.last_name as best_lap_driver
+                    d.last_name as best_lap_driver,
+                    s.is_wet_session
                 FROM sessions s
                 LEFT JOIN session_results sr ON s.session_id = sr.session_id
                     AND s.best_lap_overall = sr.best_lap
@@ -1126,7 +1127,7 @@ class ACCWebDashboard:
             champ_map = {}
             champ_default = 0
             for idx, (champ_id, champ_name, is_completed, start_date) in enumerate(championships):
-                status_str = " ✅" if is_completed else " 🔄"
+                status_str = " ❎" if is_completed == -1 else (" ✅" if is_completed == 1 else " 🔄")
                 display = f"{champ_name}{status_str}"
                 champ_options.append(display)
                 champ_map[display] = champ_id
@@ -1308,7 +1309,7 @@ class ACCWebDashboard:
                 sessions = self.get_competition_sessions(comp_id)
 
                 if sessions:
-                    for session_id, session_type, session_date, session_order, total_drivers, best_lap_overall, best_lap_driver in sessions:
+                    for session_id, session_type, session_date, session_order, total_drivers, best_lap_overall, best_lap_driver, is_wet_session in sessions:
                         # Format data
                         try:
                             date_obj = datetime.fromisoformat(session_date.replace('Z', '+00:00'))
@@ -1317,11 +1318,12 @@ class ACCWebDashboard:
                             date_str = session_date[:16] if session_date else 'N/A'
 
                         # Header sessione
-                        best_lap_text = f'⚡ Best: {self.format_lap_time(best_lap_overall)} ({best_lap_driver})' if best_lap_overall and best_lap_driver else (f'⚡ Best: {self.format_lap_time(best_lap_overall)}' if best_lap_overall else '')
+                        best_lap_text = f'⏱️ Best: {self.format_lap_time(best_lap_overall)} ({best_lap_driver})' if best_lap_overall and best_lap_driver else (f'⏱️ Best: {self.format_lap_time(best_lap_overall)}' if best_lap_overall else '')
+                        rain_icon = ' 🌧️' if is_wet_session else ''
                         st.markdown(f"""
                         <div style="background: #5a5a5a; padding: 12px 16px; border-radius: 8px; margin: 15px 0 10px 0; border-left: 4px solid #888;">
                             <p style="margin: 0; color: #ffffff; font-size: 1.05rem; font-weight: 600;">
-                                🏁 {session_type} <span style="font-weight: 400; opacity: 0.9;">- {date_str} | 👥 {total_drivers} drivers{f' | {best_lap_text}' if best_lap_text else ''}</span>
+                                🏁 {session_type}{rain_icon} <span style="font-weight: 400; opacity: 0.9;">- {date_str} | 👥 {total_drivers} drivers{f' | {best_lap_text}' if best_lap_text else ''}</span>
                             </p>
                         </div>
                         """, unsafe_allow_html=True)
@@ -1476,8 +1478,8 @@ class ACCWebDashboard:
             league_map = {}
 
             for league_id, name, season, start_date, end_date, total_tiers, is_completed, description in leagues:
-                # Formato display
-                status_str = " ✅" if is_completed else " 🔄"
+                # Formato display (is_completed=1 → legacy/archiviata, 0 → corrente)
+                status_str = " 🗄️" if is_completed else " ▶️"
                 season_str = f" - {season}" if season else ""
                 display_name = f"{name}{season_str}{status_str}"
                 league_options.append(display_name)
@@ -1511,7 +1513,7 @@ class ACCWebDashboard:
 
                 # Header league con stile championship-header (non mostrato se lega a tier singolo)
                 if not total_tiers or total_tiers != 1:
-                    status_icon = "✅" if is_completed else "🔄"
+                    status_icon = "🗄️" if is_completed else "▶️"
 
                     # Costruisci l'HTML completo
                     header_html = f"""
@@ -1579,7 +1581,7 @@ class ACCWebDashboard:
 
                     for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, champ_type, standings_count) in enumerate(tier_championships):
                         # Formato display
-                        status_str = " ✅" if is_completed else " 🔄"
+                        status_str = " ❎" if is_completed == -1 else (" ✅" if is_completed == 1 else " 🔄")
                         date_str = f" ({date_start[:10]})" if date_start else ""
                         if champ_type == 'tier' and tier_num:
                             display_name = f"Tier {tier_num} - {champ_name}{date_str}{status_str}"
@@ -3158,14 +3160,17 @@ class ACCWebDashboard:
             FROM drivers d
             LEFT JOIN (
                 -- Statistiche da championship_standings
+                -- Titles won: esclusi campionati annullati (is_completed=-1)
+                -- Wins/poles/podiums: contano sempre, anche se il campionato è annullato
                 SELECT
-                    driver_id,
-                    SUM(CASE WHEN position = 1 THEN 1 ELSE 0 END) as championships,
-                    SUM(wins) as wins,
-                    SUM(poles) as poles,
-                    SUM(podiums) as podiums
-                FROM championship_standings
-                GROUP BY driver_id
+                    cs.driver_id,
+                    SUM(CASE WHEN cs.position = 1 AND ch.is_completed != -1 THEN 1 ELSE 0 END) as championships,
+                    SUM(cs.wins) as wins,
+                    SUM(cs.poles) as poles,
+                    SUM(cs.podiums) as podiums
+                FROM championship_standings cs
+                JOIN championships ch ON cs.championship_id = ch.championship_id
+                GROUP BY cs.driver_id
             ) champ ON d.driver_id = champ.driver_id
             WHERE d.trust_level = 2
             ORDER BY d.last_name
@@ -3203,14 +3208,17 @@ class ACCWebDashboard:
             }
             
             # Query per risultati gare (wins, poles, podiums, championships) da championship_standings
+            # Titles won: esclusi campionati annullati (is_completed=-1)
+            # Wins/poles/podiums: contano sempre, anche se il campionato è annullato
             results_query = '''
-                SELECT 
-                    SUM(wins) as wins,
-                    SUM(poles) as poles,
-                    SUM(podiums) as podiums,
-                    SUM(CASE WHEN position = 1 THEN 1 ELSE 0 END) as championships
-                FROM championship_standings
-                WHERE driver_id = ?
+                SELECT
+                    SUM(cs.wins) as wins,
+                    SUM(cs.poles) as poles,
+                    SUM(cs.podiums) as podiums,
+                    SUM(CASE WHEN cs.position = 1 AND ch.is_completed != -1 THEN 1 ELSE 0 END) as championships
+                FROM championship_standings cs
+                JOIN championships ch ON cs.championship_id = ch.championship_id
+                WHERE cs.driver_id = ?
             '''
             
             cursor.execute(results_query, [driver_id])
@@ -3256,21 +3264,24 @@ class ACCWebDashboard:
                 GROUP BY s.track_name
             ),
             track_records AS (
-                SELECT 
+                SELECT
                     s.track_name,
                     MIN(l.lap_time) as track_record
                 FROM laps l
                 JOIN sessions s ON l.session_id = s.session_id
+                JOIN drivers d ON l.driver_id = d.driver_id
                 WHERE l.is_valid_for_best = 1 AND l.lap_time > 0
+                  AND d.trust_level = 2
                 GROUP BY s.track_name
             )
-            SELECT 
+            SELECT
                 dtb.track_name,
                 dtb.best_lap,
                 dtb.valid_laps,
                 s.session_date,
                 s.session_type,
                 s.competition_id,
+                s.is_time_attack,
                 CASE WHEN dtb.best_lap = tr.track_record THEN 1 ELSE 0 END as is_record
             FROM driver_track_bests dtb
             JOIN laps l ON dtb.best_lap = l.lap_time
@@ -3405,12 +3416,19 @@ class ACCWebDashboard:
         
         # Riempi valori mancanti con 0
         final_display = final_display.fillna(0)
-        
+
         st.dataframe(
             final_display,
             width='stretch',
             hide_index=True,
-            height=400
+            height=400,
+            column_config={
+                '🏁 Car Number': st.column_config.NumberColumn(width='small'),
+                '🏆 Titles Won':  st.column_config.NumberColumn(width='small'),
+                '🥇 Wins':        st.column_config.NumberColumn(width='small'),
+                '🚩 Poles':       st.column_config.NumberColumn(width='small'),
+                '🏅 Podiums':     st.column_config.NumberColumn(width='small'),
+            }
         )
         
         # Info aggiuntive
@@ -3443,112 +3461,22 @@ class ACCWebDashboard:
             st.warning("⚠️ No data available for this driver")
             return
         
-        # Prima riga: Info base
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <p class="metric-value">{driver_data['driver_id']}</p>
-                <p class="metric-label">🆔 Driver ID</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            short_name = driver_data.get('short_name', 'N/A')
-            st.markdown(f"""
-            <div class="metric-card">
-                <p class="metric-value" style="font-size: 1.5rem;">{short_name}</p>
-                <p class="metric-label">📝 Short Name</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            total_sessions = driver_stats.get('total_sessions', 0)
-            st.markdown(f"""
-            <div class="metric-card">
-                <p class="metric-value">{total_sessions}</p>
-                <p class="metric-label">🎮 Total Sessions</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            official_sessions = driver_stats.get('official_sessions', 0)
-            st.markdown(f"""
-            <div class="metric-card">
-                <p class="metric-value">{official_sessions}</p>
-                <p class="metric-label">🏆 Official Sessions</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Seconda riga: Performance
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            championships = driver_stats.get('championships', 0)
-            st.markdown(f"""
-            <div class="metric-card">
-                <p class="metric-value">{championships}</p>
-                <p class="metric-label">🏆 Titles Won</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            wins = driver_stats.get('wins', 0)
-            st.markdown(f"""
-            <div class="metric-card">
-                <p class="metric-value">{wins}</p>
-                <p class="metric-label">🥇 Wins</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            poles = driver_stats.get('poles', 0)
-            st.markdown(f"""
-            <div class="metric-card">
-                <p class="metric-value">{poles}</p>
-                <p class="metric-label">🚩 Poles</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            podiums = driver_stats.get('podiums', 0)
-            st.markdown(f"""
-            <div class="metric-card">
-                <p class="metric-value">{podiums}</p>
-                <p class="metric-label">🏅 Podiums</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Terza riga: Trust, Reports e Tracks
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            num_tracks = driver_stats.get('num_tracks', 0)
-            st.markdown(f"""
-            <div class="metric-card">
-                <p class="metric-value">{num_tracks}</p>
-                <p class="metric-label">🏁 Tracks Driven</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            trust_level = driver_stats.get('trust_level', 'N/A')
-            st.markdown(f"""
-            <div class="metric-card">
-                <p class="metric-value" style="font-size: 1.5rem;">{trust_level}</p>
-                <p class="metric-label">🛡️ Trust Level</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            bad_reports = driver_stats.get('bad_reports', 0)
-            st.markdown(f"""
-            <div class="metric-card">
-                <p class="metric-value">{bad_reports}</p>
-                <p class="metric-label">⚠️ Bad Reports</p>
-            </div>
-            """, unsafe_allow_html=True)
+        # Statistiche pilota
+        total_sessions  = driver_stats.get('total_sessions', 0)
+        num_tracks      = driver_stats.get('num_tracks', 0)
+        championships   = driver_stats.get('championships', 0)
+        wins            = driver_stats.get('wins', 0)
+        poles           = driver_stats.get('poles', 0)
+        podiums         = driver_stats.get('podiums', 0)
+
+        st.markdown(f"""
+        - 🎮 **Total Sessions:** {total_sessions}
+        - 🏁 **Tracks Driven:** {num_tracks}
+        - 🏆 **Titles Won:** {championships}
+        - 🥇 **Wins:** {wins}
+        - 🚩 **Poles:** {poles}
+        - 🏅 **Podiums:** {podiums}
+        """)
         
         # Elenco migliori tempi per pista
         st.markdown("---")
@@ -3556,7 +3484,7 @@ class ACCWebDashboard:
         
         col1, col2 = st.columns([3, 1])
         with col2:
-            st.caption("🟢 Official Session • ⚪ Unofficial Session • 🏆 Track Record")
+            st.caption("🏆 Track Record")
         
         self.show_driver_best_times(driver_data['driver_id'])
 
@@ -3584,17 +3512,17 @@ class ACCWebDashboard:
         
         # Ordina per data del miglior tempo (decrescente)
         display_df = display_df.sort_values('session_date', ascending=False)
+
+        # Data come datetime per ordinamento corretto (column_config la formatta in display)
+        display_df['Date'] = pd.to_datetime(
+            display_df['session_date'], errors='coerce', utc=True
+        ).dt.tz_convert(None)
         
-        # Formatta data
-        display_df['Date'] = display_df['session_date'].apply(
-            lambda x: self.format_session_date(x) if pd.notna(x) else "N/A"
-        )
-        
-        # Formatta tipo sessione con indicatore ufficiale
+        # Formatta tipo sessione (Time Attack se is_time_attack=1)
         display_df['Session'] = display_df.apply(
-            lambda row: self.format_session_type_with_official_indicator(
-                row['session_type'], row['competition_id']
-            ) if pd.notna(row['session_type']) else "N/A", axis=1
+            lambda row: "⏱️ Time Attack" if row.get('is_time_attack') == 1
+                        else (self.format_session_type(row['session_type']) if pd.notna(row['session_type']) else "N/A"),
+            axis=1
         )
         
         # Nome pista senza indicatore record (ora è nel tempo)
@@ -3617,9 +3545,12 @@ class ACCWebDashboard:
             final_display,
             width='stretch',
             hide_index=True,
-            height=400
+            height=400,
+            column_config={
+                'Date': st.column_config.DateColumn('Date', format='DD/MM/YYYY'),
+            }
         )
-        
+
         # Info aggiuntive
         total_tracks = len(display_df)
         records_held = len(display_df[display_df.get('is_record', False) == True])
