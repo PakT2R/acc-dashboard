@@ -3260,10 +3260,11 @@ class ACCWebDashboard:
         return df['track_name'].tolist()
 
     def get_driver_lap_trend(self, driver_id: int, track_name: str) -> pd.DataFrame:
-        """Restituisce il miglior tempo per data del pilota su una pista, raggruppando sessioni della stessa giornata"""
+        """Restituisce il miglior tempo per competizione del pilota su una pista, con la data massima della competizione sull'asse X"""
         query = '''
             SELECT
-                DATE(s.session_date) as session_date,
+                s.competition_id,
+                MAX(DATE(s.session_date)) as session_date,
                 MIN(l.lap_time) as best_lap
             FROM laps l
             JOIN sessions s ON l.session_id = s.session_id
@@ -3272,8 +3273,9 @@ class ACCWebDashboard:
               AND l.is_valid_for_best = 1
               AND l.lap_time > 0
               AND (s.is_wet_session IS NULL OR s.is_wet_session = 0)
-            GROUP BY DATE(s.session_date)
-            ORDER BY DATE(s.session_date) ASC
+              AND s.competition_id IS NOT NULL
+            GROUP BY s.competition_id
+            ORDER BY MAX(DATE(s.session_date)) ASC
         '''
         return self.safe_sql_query(query, [driver_id, track_name])
 
