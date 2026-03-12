@@ -163,9 +163,9 @@
     </div>
 
     <h3>Format Innovativo</h3>
-    <p>TFL3 adotta un format di <strong>mini-campionati da 4 gare</strong>, intensi e coinvolgenti, che si susseguono nel tempo. Ogni campionato è:</p>
+    <p>TFL3 adotta un format di <strong>mini-campionati da 5 gare</strong>, intensi e coinvolgenti, che si susseguono nel tempo. Ogni campionato include:</p>
     <ul>
-        <li><span class="check">✅</span> <strong>Completo e autonomo</strong> - 4 gare che valgono tutte</li>
+        <li><span class="check">✅</span> <strong>5 gare con scarto</strong> - La peggior gara viene scartata dalla classifica</li>
         <li><span class="check">✅</span> <strong>Server privato</strong> - Ambiente controllato e di qualità</li>
         <li><span class="check">✅</span> <strong>Time Attack</strong> - Qualifica invertita + punti bonus</li>
         <li><span class="check">✅</span> <strong>Meteo variabile</strong> - Sfida sempre diversa ad ogni gara</li>
@@ -183,8 +183,8 @@
     <p><strong>Piattaforma:</strong> Assetto Corsa Competizione</p>
     <p><strong>Accesso Server:</strong> Privato con password (comunicata su Discord)</p>
     
-    <p><strong>Durata:</strong> 4 settimane consecutive</p>
-    <p><strong>Gare:</strong> 4 gare ufficiali (tutte valide)</p>
+    <p><strong>Durata:</strong> 5 settimane consecutive</p>
+    <p><strong>Gare:</strong> 5 gare ufficiali (con 1 gara di scarto)</p>
     
     <p><strong>Calendario Settimanale:</strong></p>
     <div class="code-block">
@@ -247,13 +247,14 @@ Mercoledì h22:00: GARA UFFICIALE
         <p>I piloti che NON partecipano al Time Attack:</p>
         <ul>
             <li>Ricevono <strong>0 punti</strong> da Time Attack</li>
-            <li>Partono <strong>in coda alla griglia</strong> dopo l'ultima posizione occupata dal vincitore del TA</li>
+            <li>Partono <strong>in fondo alla griglia</strong>, dopo tutti i piloti che hanno fatto almeno un giro nel TA</li>
             <li>L'ordine tra chi non ha fatto TA è determinato dall'<strong>ordine di collegamento al server</strong></li>
         </ul>
+        <p>Anche un solo giro lento nel TA garantisce una posizione migliore in griglia rispetto a chi non partecipa!</p>
         
         <p><strong>Esempio con 15 piloti (12 hanno fatto TA, 3 no):</strong></p>
         <ul>
-            <li>Posizioni 12-1: Piloti TA in ordine invertito (1° TA ultimo, 12° TA in 1a pos.)</li>
+            <li>Posizioni 1-12: Piloti TA in ordine invertito (1° TA in ultima pos., 12° TA in 1a pos.)</li>
             <li>Posizioni 13-14-15: I 3 che non hanno fatto TA (in ordine di collegamento)</li>
         </ul>
     </div>
@@ -284,10 +285,12 @@ Mercoledì h22:00: GARA UFFICIALE
     <div class="highlight-box">
         <p><strong>Meteo sempre VARIABILE:</strong></p>
         <ul>
-            <li>Rain probability: <strong>0.3 (30%)</strong></li>
-            <li>Cloud level: <strong>0.3 (30%)</strong></li>
+            <li>Rain: <strong>0.3</strong></li>
+            <li>Cloud Level: <strong>0.2</strong></li>
+            <li>Randomness: <strong>2</strong></li>
+            <li>Temperature: <strong>15°</strong></li>
         </ul>
-        <p>Ogni gara può avere condizioni diverse, richiedendo adattabilità e strategia nella scelta gomme!</p>
+        <p>Questa configurazione può generare condizioni diverse per ogni gara, richiedendo adattabilità e strategia nella scelta gomme!</p>
     </div>
 
     <h2>📊 SISTEMA DI PUNTEGGIO</h2>
@@ -316,7 +319,8 @@ Mercoledì h22:00: GARA UFFICIALE
 
     <h3>Punteggio Totale per Gara</h3>
     <div class="formula">
-        PUNTI GARA = Punti Posizione + Punti Time Attack + Bonus Giro Veloce + Influenza Guest<br><br>
+        PUNTI GARA = Punti Posizione + Punti Time Attack + Bonus Giro Veloce + Bonus/Malus<br>
+        <small>(Bonus/Malus = influenza piloti Guest, descritti più avanti nella sezione Partecipazione)</small><br><br>
         MINIMO ASSOLUTO: 0 punti (non si può andare in negativo)
     </div>
 
@@ -345,8 +349,10 @@ Mercoledì h22:00: GARA UFFICIALE
         <ul>
             <li>Possono unirsi dopo l'inizio del campionato</li>
             <li><strong>NON</strong> partecipano alla classifica finale</li>
-            <li><strong>NON</strong> partecipano al Time Attack</li>
-            <li>Partono in fondo alla griglia dopo i membri che non hanno fatto TA</li>
+            <li><strong>Possono</strong> partecipare al Time Attack per guadagnare la propria posizione in griglia</li>
+            <li>Il TA <strong>NON</strong> assegna punti competizione ai Guest</li>
+            <li>La posizione ottenuta nel TA è <strong>conservata in griglia</strong> (non invertita)</li>
+            <li>Chi non fa TA parte in fondo alla griglia, dopo i membri che non hanno fatto TA</li>
             <li><strong>Influenzano</strong> i punti dei membri registrati con sistema bonus/malus</li>
         </ul>
     </div>
@@ -393,58 +399,17 @@ Mercoledì h22:00: GARA UFFICIALE
     <h2>🏆 CLASSIFICA FINALE</h2>
     
     <h3>Calcolo Punteggio Campionato</h3>
-    <p><strong>Tutte le 4 gare sono valide!</strong></p>
+    <p><strong>5 gare, ma solo le migliori 4 contano!</strong></p>
     
     <div class="formula">
-        PUNTEGGIO FINALE = Somma punti delle 4 gare
+        PUNTEGGIO FINALE = Somma delle 4 migliori gare (su 5)<br>
+        <small>Viene scartata la gara con il punteggio più basso (Time Attack + Gara + Bonus)</small>
     </div>
     
-    <p>Il <strong>Campione TFL3</strong> è il pilota con il punteggio totale più alto al termine delle 4 gare.</p>
-
-    <h3>Esempio Campionato Completo</h3>
+    <p>Il <strong>Campione TFL3</strong> è il pilota con il punteggio totale più alto al termine delle 5 gare, dopo aver scartato il peggior risultato.</p>
     
-    <div class="example">
-        <strong>Marco_R - Campionato Esempio (10 membri registrati)</strong>
-        
-        <p><strong>GARA 1</strong> (Monza):</p>
-        <ul>
-            <li>Time Attack: 2° su 10 → 10 × (8/9) × 0.75 = <strong>+6.7 pt</strong> → Partenza 9° posizione</li>
-            <li>Gara: 3° tra membri → 10 × (7/9) = <strong>7.8 pt</strong></li>
-            <li>Giro veloce: No (0 pt)</li>
-            <li>Guest: 2 battuti, 1 davanti → (2 × 0.5) - (1 × 0.5) = <strong>+0.5 pt</strong></li>
-            <li><strong>Totale Gara 1: 7.8 + 6.7 + 0.5 = 15.0 pt</strong></li>
-        </ul>
-        
-        <p><strong>GARA 2</strong> (Spa):</p>
-        <ul>
-            <li>Time Attack: 1° su 10 → 10 × (9/9) × 0.75 = <strong>+7.5 pt</strong> → Partenza ULTIMA (10°)</li>
-            <li>Gara: 2° tra membri → 10 × (8/9) = <strong>8.9 pt</strong></li>
-            <li>Giro veloce: Sì <strong>+1.0 pt</strong></li>
-            <li>Guest: 3 battuti → 3 × 0.5 = <strong>+1.5 pt</strong></li>
-            <li><strong>Totale Gara 2: 8.9 + 7.5 + 1.0 + 1.5 = 18.9 pt</strong></li>
-        </ul>
-        
-        <p><strong>GARA 3</strong> (Nürburgring):</p>
-        <ul>
-            <li>Time Attack: Non partecipato <strong>0 pt</strong> → Partenza 1a o 2a posizione</li>
-            <li>Gara: 1° tra membri → 10 × (9/9) = <strong>10.0 pt</strong></li>
-            <li>Giro veloce: No (0 pt)</li>
-            <li>Guest: 2 battuti → 2 × 0.5 = <strong>+1.0 pt</strong></li>
-            <li><strong>Totale Gara 3: 10.0 + 0 + 1.0 = 11.0 pt</strong></li>
-        </ul>
-        
-        <p><strong>GARA 4</strong> (Brands Hatch):</p>
-        <ul>
-            <li>Time Attack: 3° su 10 → 10 × (7/9) × 0.75 = <strong>+5.8 pt</strong> → Partenza 8° posizione</li>
-            <li>Gara: 4° tra membri → 10 × (6/9) = <strong>6.7 pt</strong></li>
-            <li>Giro veloce: No (0 pt)</li>
-            <li>Guest: 1 battuto, 1 davanti → (1 × 0.5) - (1 × 0.5) = <strong>0 pt</strong></li>
-            <li><strong>Totale Gara 4: 6.7 + 5.8 + 0 = 12.5 pt</strong></li>
-        </ul>
-    </div>
-    
-    <div class="formula" style="font-size: 20px;">
-        🏆 PUNTEGGIO FINALE: 15.0 + 18.9 + 11.0 + 12.5 = 57.4 punti
+    <div class="highlight-box">
+        <strong>⚠️ Gara di scarto:</strong> Lo scarto si applica sul punteggio <strong>complessivo della competizione</strong>, ovvero la somma di Time Attack + Punti Gara + Bonus Giro Veloce + Influenza Guest di quella settimana. Viene scartata automaticamente la settimana con il totale più basso.
     </div>
 
     <h2>📋 REGOLE DI COMPORTAMENTO</h2>
@@ -476,16 +441,16 @@ Mercoledì h22:00: GARA UFFICIALE
     <h2>❓ FAQ</h2>
     
     <p><strong>Q: Quante gare devo correre?</strong><br>
-    Tutte e 4! A differenza del vecchio formato, ora tutte le gare valgono per la classifica finale.</p>
+    Tutte e 5! Ma non disperare se ne salti una: la gara con il punteggio più basso viene automaticamente scartata dalla classifica finale.</p>
     
     <p><strong>Q: Cosa succede se salto una gara?</strong><br>
-    Ricevi 0 punti per quella gara, penalizzando il tuo punteggio finale. È importante partecipare a tutte e 4.</p>
+    Ricevi 0 punti per quella gara. Se sarà il tuo risultato più basso verrà automaticamente scartata, limitando il danno. Tuttavia partecipare a tutte e 5 le gare ti dà sempre più possibilità di ottenere un buon punteggio finale.</p>
     
     <p><strong>Q: È meglio fare bene nel Time Attack o partire davanti?</strong><br>
-    È una scelta strategica! Il TA dà punti garantiti, ma partire davanti può essere vantaggioso in gara. L'equilibrio perfetto dipende dal tuo stile di guida.</p>
+    È una scelta strategica! Più sei veloce nel TA, più punti guadagni ma più indietro parti in griglia. Al contrario, un giro lento nel TA ti dà pochi punti bonus ma una posizione di partenza migliore. L'importante è fare almeno un giro: chi non partecipa al TA parte comunque ultimo, senza alcun vantaggio.</p>
     
     <p><strong>Q: Cosa succede se non faccio il Time Attack?</strong><br>
-    Ricevi 0 punti TA ma parti nelle prime posizioni. Può essere una strategia valida se punti tutto sulla gara.</p>
+    Ricevi 0 punti TA e parti in fondo alla griglia, dopo tutti i piloti che hanno partecipato al TA, anche quelli più lenti. Il sistema è pensato per incentivare la partecipazione: anche un solo giro nel TA, seppur lento, ti garantisce una posizione in griglia migliore rispetto a chi non lo ha fatto.</p>
     
     <p><strong>Q: Come funziona il server privato?</strong><br>
     La password viene comunicata su Discord prima di ogni campionato. Solo i membri registrati e i guest autorizzati possono accedere.</p>
@@ -520,16 +485,16 @@ Mercoledì h22:00: GARA UFFICIALE
     <ul>
         <li>Richiedi l'accesso come Guest su Discord</li>
         <li>Riceverai la password del server</li>
-        <li>Puoi correre nelle gare ufficiali (influenzi i punteggi)</li>
+        <li>Puoi partecipare al Time Attack per guadagnare la tua posizione in griglia (0 punti competizione)</li>
+        <li>Puoi correre nelle gare ufficiali (influenzi i punteggi dei membri)</li>
         <li>NON partecipi alla classifica finale</li>
-        <li>NON puoi fare Time Attack</li>
         <li>Dopo il campionato potrai richiedere di diventare membro per il prossimo</li>
     </ul>
 
     <div class="footer">
         <p><strong>Organizzato da: TFL3 Ita Community</strong></p>
         <p>🍕 Terronia Fun League 3 - Il racing GT3 del Sud Italia 🍕</p>
-        <p>Mini-campionati da 4 gare • Ogni mercoledì h22:00 • Time Attack continuo</p>
+        <p>Mini-campionati da 5 gare • Ogni mercoledì h22:00 • Time Attack continuo</p>
         <p>🏁 Buone corse! 🏁</p>
     </div>
 </body>
