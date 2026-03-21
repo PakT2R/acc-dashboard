@@ -594,9 +594,9 @@ class ACCWebDashboard:
 
         # TFL Introduction Text
         st.markdown("""<div style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 50%, #495057 100%); padding: 40px 30px; border-radius: 20px; margin: 20px 0; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3); text-align: center; color: white; border: 3px solid rgba(255, 255, 255, 0.15);">
-<p style="font-size: 2.5rem; font-weight: 900; margin: 0 0 25px 0; text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4); letter-spacing: 1px; line-height: 1.2;">🏁 One night a week, one season together 🏁</p>
+<p style="font-size: 2.5rem; font-weight: 900; margin: 0 0 25px 0; text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4); letter-spacing: 1px; line-height: 1.2;">🏁 Where the fastest start last 🏁</p>
 <div style="background: rgba(255, 255, 255, 0.25); padding: 2px; margin: 25px auto; width: 80%; border-radius: 5px;"></div>
-<p style="font-size: 1.2rem; margin: 20px 0; font-weight: 500; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Welcome to the official dashboard of the <strong>Tier Friends League</strong></p>
+<p style="font-size: 1.2rem; margin: 20px 0; font-weight: 500; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Welcome to the official dashboard of the <strong>Terronia Fun League 3</strong></p>
 <p style="font-size: 1.1rem; margin: 25px 0 15px 0; font-weight: 600; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Use the menu to view:</p>
 <div style="background: rgba(255, 255, 255, 0.15); padding: 20px; border-radius: 12px; margin: 20px auto; max-width: 600px; backdrop-filter: blur(10px);">
 <p style="margin: 10px 0; font-size: 1.05rem; font-weight: 500;">⏱️ <strong>Time Attack</p>
@@ -606,7 +606,7 @@ class ACCWebDashboard:
 </div>
 <div style="background: rgba(255, 255, 255, 0.25); padding: 2px; margin: 25px auto; width: 80%; border-radius: 5px;"></div>
 <p style="font-size: 1.3rem; margin: 20px 0 10px 0; font-weight: 700; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">⏰ Race every Wednesday at 10:00 PM</p>
-<p style="font-size: 1.1rem; margin: 15px 0 0 0; font-weight: 600; font-style: italic; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Organized by Terronia Racing 🏴</p>
+<p style="font-size: 1.1rem; margin: 15px 0 0 0; font-weight: 600; font-style: italic; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Managed by PakT2R 💻</p>
 </div>""", unsafe_allow_html=True)
 
         # Link to rulebook - download del file locale
@@ -679,9 +679,13 @@ class ACCWebDashboard:
 
             # Ottieni campionati TIER (solo TIER hanno Time Attack)
             cursor.execute("""
-                SELECT ch.championship_id, ch.name, ch.is_completed, ch.start_date
+                SELECT ch.championship_id, ch.name, ch.is_completed, ch.start_date,
+                       COUNT(DISTINCT tar.competition_id) as ta_results_count
                 FROM championships ch
+                LEFT JOIN competitions c ON c.championship_id = ch.championship_id
+                LEFT JOIN time_attack_results tar ON tar.competition_id = c.competition_id
                 WHERE ch.championship_type = 'tier'
+                GROUP BY ch.championship_id
                 ORDER BY
                     CASE WHEN ch.start_date IS NULL THEN 1 ELSE 0 END,
                     ch.start_date DESC,
@@ -694,17 +698,20 @@ class ACCWebDashboard:
                 conn.close()
                 return
 
-            # Prepara opzioni campionato, default: primo non completato
+            # Prepara opzioni campionato, default: più recente con risultati Time Attack
             champ_options = []
             champ_map = {}
             champ_default = 0
-            for idx, (champ_id, champ_name, is_completed, start_date) in enumerate(championships):
+            first_with_results = None
+            for idx, (champ_id, champ_name, is_completed, start_date, ta_results_count) in enumerate(championships):
                 status_str = " ❎" if is_completed == -1 else (" ✅" if is_completed == 1 else " 🔄")
                 display = f"{champ_name}{status_str}"
                 champ_options.append(display)
                 champ_map[display] = champ_id
-                if not is_completed and champ_default == 0:
-                    champ_default = idx
+                if ta_results_count > 0 and first_with_results is None:
+                    first_with_results = idx
+            if first_with_results is not None:
+                champ_default = first_with_results
 
             selected_championship = st.selectbox(
                 "🏆 Select Championship:",
@@ -1060,10 +1067,14 @@ class ACCWebDashboard:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            # Ottieni campionati con ordinamento come in standings
             cursor.execute("""
-                SELECT ch.championship_id, ch.name, ch.is_completed, ch.start_date
+                SELECT ch.championship_id, ch.name, ch.is_completed, ch.start_date,
+                       COUNT(DISTINCT cs.competition_id) as results_count
                 FROM championships ch
+                LEFT JOIN competition_standings cs ON cs.competition_id IN (
+                    SELECT competition_id FROM competitions WHERE championship_id = ch.championship_id
+                )
+                GROUP BY ch.championship_id
                 ORDER BY
                     CASE WHEN ch.start_date IS NULL THEN 1 ELSE 0 END,
                     ch.start_date DESC,
@@ -1076,17 +1087,20 @@ class ACCWebDashboard:
                 conn.close()
                 return
 
-            # Prepara opzioni campionato, default: primo non completato
+            # Prepara opzioni campionato, default: più recente con risultati competizione calcolati
             champ_options = []
             champ_map = {}
             champ_default = 0
-            for idx, (champ_id, champ_name, is_completed, start_date) in enumerate(championships):
+            first_with_results = None
+            for idx, (champ_id, champ_name, is_completed, start_date, results_count) in enumerate(championships):
                 status_str = " ❎" if is_completed == -1 else (" ✅" if is_completed == 1 else " 🔄")
                 display = f"{champ_name}{status_str}"
                 champ_options.append(display)
                 champ_map[display] = champ_id
-                if not is_completed and champ_default == 0:
-                    champ_default = idx
+                if results_count > 0 and first_with_results is None:
+                    first_with_results = idx
+            if first_with_results is not None:
+                champ_default = first_with_results
 
             selected_championship = st.selectbox(
                 "🏆 Select Championship:",
