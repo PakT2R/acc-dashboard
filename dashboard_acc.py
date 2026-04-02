@@ -1015,6 +1015,7 @@ class ACCWebDashboard:
                   AND s.session_type LIKE 'R%'
                   AND (s.is_time_attack IS NULL OR s.is_time_attack = 0)
                   AND sr.is_spectator = FALSE
+                  AND sr.lap_count > 0
             ) race_sr ON cs.driver_id = race_sr.driver_id
             WHERE cs.competition_id = ?
                 AND (ch.championship_type != 'tier' OR ce.driver_id IS NOT NULL)
