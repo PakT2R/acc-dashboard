@@ -607,7 +607,7 @@ class ACCWebDashboard:
 <p style="margin: 10px 0; font-size: 1.05rem; font-weight: 500;">👤 <strong>Driver Information</p>
 </div>
 <div style="background: rgba(255, 255, 255, 0.25); padding: 2px; margin: 25px auto; width: 80%; border-radius: 5px;"></div>
-<p style="font-size: 1.3rem; margin: 20px 0 10px 0; font-weight: 700; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">⏰ Race every Wednesday at 10:00 PM</p>
+<p style="font-size: 1.3rem; margin: 20px 0 10px 0; font-weight: 700; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">⏰ Championships and 4Fun Races every week</p>
 <p style="font-size: 1.1rem; margin: 15px 0 0 0; font-weight: 600; font-style: italic; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Managed by PakT2R 💻</p>
 </div>""", unsafe_allow_html=True)
 
