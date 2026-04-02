@@ -84,7 +84,8 @@ class ACCWebDashboard:
         default_config = {
             "community": {
                 "name": os.getenv('ACC_COMMUNITY_NAME', "Community Name"),
-                "description": os.getenv('ACC_COMMUNITY_DESC', "Community Desc")
+                "description": os.getenv('ACC_COMMUNITY_DESC', "Community Dashboard"),
+                "slogan": os.getenv('ACC_COMMUNITY_SLOGAN', "Where passion meets competition")
             },
             "database": {
                 "path": os.getenv('ACC_DATABASE_PATH', "acc_stats.db")
@@ -420,7 +421,7 @@ class ACCWebDashboard:
                     img_base64 = base64.b64encode(img_file.read()).decode()
 
                 community_name = self.config['community']['name']
-                community_description = self.config['community'].get('description', 'ACC Server Dashboard')
+                community_description = self.config['community']['description']
 
                 # Banner con background image e testo sovrapposto via CSS puro
                 st.markdown(f"""
@@ -485,7 +486,7 @@ class ACCWebDashboard:
             else:
                 # Fallback con il riquadro blu originale se non c'è il banner
                 community_name = self.config['community']['name']
-                community_description = self.config['community'].get('description', 'ACC Server Dashboard')
+                community_description = self.config['community']['description']
                 st.markdown(f"""
                 <div class="main-header">
                     <h1>🏁 {community_name}</h1>
@@ -593,10 +594,11 @@ class ACCWebDashboard:
             return
 
         # TFL Introduction Text
-        st.markdown("""<div style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 50%, #495057 100%); padding: 40px 30px; border-radius: 20px; margin: 20px 0; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3); text-align: center; color: white; border: 3px solid rgba(255, 255, 255, 0.15);">
-<p style="font-size: 2.5rem; font-weight: 900; margin: 0 0 25px 0; text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4); letter-spacing: 1px; line-height: 1.2;">🏁 Where the fastest start last 🏁</p>
+        community_slogan = self.config['community']['slogan']
+        st.markdown(f"""<div style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 50%, #495057 100%); padding: 40px 30px; border-radius: 20px; margin: 20px 0; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3); text-align: center; color: white; border: 3px solid rgba(255, 255, 255, 0.15);">
+<p style="font-size: 2.5rem; font-weight: 900; margin: 0 0 25px 0; text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4); letter-spacing: 1px; line-height: 1.2;">🏁 {community_slogan} 🏁</p>
 <div style="background: rgba(255, 255, 255, 0.25); padding: 2px; margin: 25px auto; width: 80%; border-radius: 5px;"></div>
-<p style="font-size: 1.2rem; margin: 20px 0; font-weight: 500; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Welcome to the official dashboard of the <strong>Terronia Fun League 3</strong></p>
+<p style="font-size: 1.2rem; margin: 20px 0; font-weight: 500; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Welcome to the official dashboard of our community</p>
 <p style="font-size: 1.1rem; margin: 25px 0 15px 0; font-weight: 600; text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);">Use the menu to view:</p>
 <div style="background: rgba(255, 255, 255, 0.15); padding: 20px; border-radius: 12px; margin: 20px auto; max-width: 600px; backdrop-filter: blur(10px);">
 <p style="margin: 10px 0; font-size: 1.05rem; font-weight: 500;">⏱️ <strong>Time Attack</p>
