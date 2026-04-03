@@ -706,7 +706,7 @@ class ACCWebDashboard:
             champ_default = 0
             first_with_results = None
             for idx, (champ_id, champ_name, is_completed, start_date, ta_results_count) in enumerate(championships):
-                status_str = " ❎" if is_completed == -1 else (" ✅" if is_completed == 1 else " 🔄")
+                status_str = " ❌" if is_completed == -1 else (" ✅" if is_completed == 1 else " 🔄")
                 display = f"{champ_name}{status_str}"
                 champ_options.append(display)
                 champ_map[display] = champ_id
@@ -1096,7 +1096,7 @@ class ACCWebDashboard:
             champ_default = 0
             first_with_results = None
             for idx, (champ_id, champ_name, is_completed, start_date, results_count) in enumerate(championships):
-                status_str = " ❎" if is_completed == -1 else (" ✅" if is_completed == 1 else " 🔄")
+                status_str = " ❌" if is_completed == -1 else (" ✅" if is_completed == 1 else " 🔄")
                 display = f"{champ_name}{status_str}"
                 champ_options.append(display)
                 champ_map[display] = champ_id
@@ -1552,7 +1552,7 @@ class ACCWebDashboard:
 
                     for idx, (champ_id, champ_name, tier_num, date_start, date_end, is_completed, desc, champ_type, standings_count) in enumerate(tier_championships):
                         # Formato display
-                        status_str = " ❎" if is_completed == -1 else (" ✅" if is_completed == 1 else " 🔄")
+                        status_str = " ❌" if is_completed == -1 else (" ✅" if is_completed == 1 else " 🔄")
                         date_str = f" ({date_start[:10]})" if date_start else ""
                         if champ_type == 'tier' and tier_num:
                             display_name = f"Tier {tier_num} - {champ_name}{date_str}{status_str}"
@@ -3113,38 +3113,85 @@ class ACCWebDashboard:
             st.error(f"❌ Errore nel recupero piloti: {e}")
             return []
     
-    def get_all_drivers_summary(self) -> pd.DataFrame:
-        """Ottiene riepilogo generale di tutti i piloti"""
-        
-        query = '''
-            SELECT
-                d.driver_id,
-                d.last_name as driver_name,
-                d.preferred_race_number as number,
-                COALESCE(champ.championships, 0) as championships,
-                COALESCE(champ.wins, 0) as wins,
-                COALESCE(champ.poles, 0) as poles,
-                COALESCE(champ.podiums, 0) as podiums
-            FROM drivers d
-            LEFT JOIN (
-                -- Statistiche da championship_standings
-                -- Titles won: esclusi campionati annullati (is_completed=-1)
-                -- Wins/poles/podiums: contano sempre, anche se il campionato è annullato
-                SELECT
-                    cs.driver_id,
-                    SUM(CASE WHEN cs.position = 1 AND ch.is_completed != -1 THEN 1 ELSE 0 END) as championships,
-                    SUM(cs.wins) as wins,
-                    SUM(cs.poles) as poles,
-                    SUM(cs.podiums) as podiums
-                FROM championship_standings cs
-                JOIN championships ch ON cs.championship_id = ch.championship_id
-                GROUP BY cs.driver_id
-            ) champ ON d.driver_id = champ.driver_id
-            WHERE d.trust_level = 2
-            ORDER BY d.last_name
+    def get_hall_of_fame(self) -> dict:
+        """Ottiene i top driver per categoria per la Hall of Fame"""
+
+        # 1. Più titoli vinti
+        titles_query = '''
+            SELECT d.last_name as driver, COUNT(*) as count
+            FROM championship_standings cs
+            JOIN championships ch ON cs.championship_id = ch.championship_id
+            JOIN drivers d ON cs.driver_id = d.driver_id
+            WHERE cs.position = 1 AND ch.is_completed = 1 AND d.trust_level = 2
+            GROUP BY cs.driver_id
+            ORDER BY count DESC
+            LIMIT 5
         '''
-        
-        return self.safe_sql_query(query)
+
+        # 2. Più record pista detenuti
+        records_query = '''
+            SELECT d.last_name as driver, COUNT(*) as count
+            FROM (
+                SELECT s.track_name, MIN(l.lap_time) as record_time
+                FROM laps l
+                JOIN sessions s ON l.session_id = s.session_id
+                JOIN drivers d ON l.driver_id = d.driver_id
+                WHERE l.is_valid_for_best = 1 AND l.lap_time > 0 AND d.trust_level = 2
+                GROUP BY s.track_name
+            ) tr
+            JOIN laps l ON l.lap_time = tr.record_time
+            JOIN sessions s ON l.session_id = s.session_id AND s.track_name = tr.track_name
+            JOIN drivers d ON l.driver_id = d.driver_id
+            WHERE d.trust_level = 2 AND l.is_valid_for_best = 1
+            GROUP BY l.driver_id
+            ORDER BY count DESC
+            LIMIT 5
+        '''
+
+        # 3. Più competizioni ufficiali vinte
+        comp_wins_query = '''
+            SELECT d.last_name as driver, COUNT(*) as count
+            FROM competition_standings cst
+            JOIN competitions comp ON cst.competition_id = comp.competition_id
+            JOIN championships ch ON comp.championship_id = ch.championship_id
+            JOIN drivers d ON cst.driver_id = d.driver_id
+            WHERE comp.is_completed = 1
+              AND ch.total_rounds > 0
+              AND ch.is_completed != -1
+              AND d.trust_level = 2
+              AND cst.total_points = (
+                  SELECT MAX(cst2.total_points)
+                  FROM competition_standings cst2
+                  WHERE cst2.competition_id = cst.competition_id
+              )
+            GROUP BY cst.driver_id
+            ORDER BY count DESC
+            LIMIT 5
+        '''
+
+        # 4. Più vittorie in gara (sessioni R ufficiali concluse)
+        race_wins_query = '''
+            SELECT d.last_name as driver, COUNT(*) as count
+            FROM session_results sr
+            JOIN sessions s ON sr.session_id = s.session_id
+            JOIN competitions comp ON s.competition_id = comp.competition_id
+            JOIN drivers d ON sr.driver_id = d.driver_id
+            WHERE sr.position = 1
+              AND s.session_type = 'R'
+              AND comp.is_completed = 1
+              AND (s.is_time_attack IS NULL OR s.is_time_attack = 0)
+              AND d.trust_level = 2
+            GROUP BY sr.driver_id
+            ORDER BY count DESC
+            LIMIT 5
+        '''
+
+        return {
+            'titles':    self.safe_sql_query(titles_query),
+            'records':   self.safe_sql_query(records_query),
+            'comp_wins': self.safe_sql_query(comp_wins_query),
+            'race_wins': self.safe_sql_query(race_wins_query),
+        }
     
     def get_driver_statistics(self, driver_id: int) -> Dict:
         """Ottiene statistiche complete per un pilota"""
@@ -3154,53 +3201,105 @@ class ACCWebDashboard:
             
             # Query per statistiche base
             stats_query = '''
-                SELECT 
+                SELECT
                     COUNT(DISTINCT l.session_id) as total_sessions,
                     COUNT(DISTINCT CASE WHEN s.competition_id IS NOT NULL THEN l.session_id END) as official_sessions,
                     COUNT(DISTINCT s.track_name) as num_tracks,
-                    d.trust_level
+                    d.trust_level,
+                    COUNT(CASE WHEN l.is_valid_for_best = 1 THEN 1 END) as total_valid_laps
                 FROM laps l
                 JOIN sessions s ON l.session_id = s.session_id
                 JOIN drivers d ON l.driver_id = d.driver_id
                 WHERE l.driver_id = ?
             '''
-            
+
             cursor.execute(stats_query, [driver_id])
             row = cursor.fetchone()
-            
+
             stats = {
                 'total_sessions': row[0] if row[0] else 0,
                 'official_sessions': row[1] if row[1] else 0,
                 'num_tracks': row[2] if row[2] else 0,
-                'trust_level': row[3] if row[3] is not None else 'N/A'
+                'trust_level': row[3] if row[3] is not None else 'N/A',
+                'total_valid_laps': row[4] if row[4] else 0,
             }
             
-            # Query per risultati gare (wins, poles, podiums, championships) da championship_standings
-            # Titles won: esclusi campionati annullati (is_completed=-1)
-            # Wins/poles/podiums: contano sempre, anche se il campionato è annullato
+            # Query per titoli vinti da championship_standings (solo campionati completati)
             results_query = '''
                 SELECT
-                    SUM(cs.wins) as wins,
-                    SUM(cs.poles) as poles,
-                    SUM(cs.podiums) as podiums,
-                    SUM(CASE WHEN cs.position = 1 AND ch.is_completed != -1 THEN 1 ELSE 0 END) as championships
+                    SUM(CASE WHEN cs.position = 1 AND ch.is_completed = 1 THEN 1 ELSE 0 END) as championships
                 FROM championship_standings cs
                 JOIN championships ch ON cs.championship_id = ch.championship_id
                 WHERE cs.driver_id = ?
             '''
-            
+
             cursor.execute(results_query, [driver_id])
             row = cursor.fetchone()
-            
-            if row:
-                stats.update({
-                    'wins': row[0] if row[0] else 0,
-                    'poles': row[1] if row[1] else 0,
-                    'podiums': row[2] if row[2] else 0,
-                    'championships': row[3] if row[3] else 0
-                })
+            stats['championships'] = row[0] if row and row[0] else 0
+
+            # Query per competizioni vinte (primo posto in competition_standings per total_points)
+            comp_wins_query = '''
+                SELECT
+                    COUNT(CASE WHEN ch.total_rounds > 0 THEN 1 END) as official_comp_wins,
+                    COUNT(CASE WHEN ch.total_rounds = 0 THEN 1 END) as fun_comp_wins
+                FROM competition_standings cst
+                JOIN competitions comp ON cst.competition_id = comp.competition_id AND comp.is_completed = 1
+                JOIN championships ch ON comp.championship_id = ch.championship_id
+                WHERE cst.driver_id = ?
+                  AND ch.is_completed != -1
+                  AND cst.total_points = (
+                      SELECT MAX(cst2.total_points)
+                      FROM competition_standings cst2
+                      WHERE cst2.competition_id = cst.competition_id
+                  )
+            '''
+
+            cursor.execute(comp_wins_query, [driver_id])
+            comp_row = cursor.fetchone()
+            stats['official_comp_wins'] = comp_row[0] if comp_row and comp_row[0] else 0
+            stats['fun_comp_wins']      = comp_row[1] if comp_row and comp_row[1] else 0
+
+            # Query per wins/poles/podiums/fastest laps da sessioni ufficiali concluse
+            session_stats_query = '''
+                SELECT
+                    COUNT(CASE WHEN s.session_type = 'R' AND sr.position = 1 THEN 1 END) as wins,
+                    COUNT(CASE WHEN s.session_type = 'Q' AND sr.position = 1 THEN 1 END) as poles,
+                    COUNT(CASE WHEN s.session_type = 'R' AND sr.position <= 3 THEN 1 END) as podiums,
+                    COUNT(CASE WHEN s.session_type = 'R' AND sr.best_lap = s.best_lap_overall THEN 1 END) as fastest_laps
+                FROM session_results sr
+                JOIN sessions s ON sr.session_id = s.session_id
+                JOIN competitions comp ON s.competition_id = comp.competition_id
+                WHERE sr.driver_id = ?
+                  AND comp.is_completed = 1
+                  AND (s.is_time_attack IS NULL OR s.is_time_attack = 0)
+            '''
+
+            cursor.execute(session_stats_query, [driver_id])
+            sess_row = cursor.fetchone()
+            if sess_row:
+                stats['wins']         = sess_row[0] if sess_row[0] else 0
+                stats['poles']        = sess_row[1] if sess_row[1] else 0
+                stats['podiums']      = sess_row[2] if sess_row[2] else 0
+                stats['fastest_laps'] = sess_row[3] if sess_row[3] else 0
             else:
-                stats.update({'wins': 0, 'poles': 0, 'podiums': 0, 'championships': 0})
+                stats['wins'] = stats['poles'] = stats['podiums'] = stats['fastest_laps'] = 0
+
+            # Query per time attack vinti (best_lap_time minimo per competizione conclusa)
+            ta_wins_query = '''
+                SELECT COUNT(*)
+                FROM time_attack_results tar
+                JOIN competitions comp ON tar.competition_id = comp.competition_id AND comp.is_completed = 1
+                WHERE tar.driver_id = ?
+                  AND tar.best_lap_time = (
+                      SELECT MIN(tar2.best_lap_time)
+                      FROM time_attack_results tar2
+                      WHERE tar2.competition_id = tar.competition_id
+                  )
+            '''
+
+            cursor.execute(ta_wins_query, [driver_id])
+            ta_row = cursor.fetchone()
+            stats['ta_wins'] = ta_row[0] if ta_row and ta_row[0] else 0
             
             # Query per bad reports
             bad_reports_query = '''
@@ -3341,9 +3440,8 @@ class ACCWebDashboard:
             """, unsafe_allow_html=True)
 
         if selected_driver == "📊 General Summary":
-            # Mostra riepilogo generale di tutti i piloti
             st.markdown("---")
-            st.subheader("👤 Drivers General Summary")
+            st.subheader("👑 Hall of Fame")
             self.show_all_drivers_summary()
             
         else:
@@ -3355,63 +3453,40 @@ class ACCWebDashboard:
                 self.show_driver_details(selected_driver_data)
     
     def show_all_drivers_summary(self):
-        """Mostra riepilogo generale di tutti i piloti"""
-        
-        summary_df = self.get_all_drivers_summary()
-        
-        if summary_df.empty:
-            st.warning("⚠️ No data available for drivers summary")
-            return
-        
-        # Prepara display summary
-        summary_display = summary_df.copy()
-        
-        # Ordina alfabeticamente per nome (case-insensitive)
-        summary_display['driver_name_lower'] = summary_display['driver_name'].str.lower()
-        summary_display = summary_display.sort_values('driver_name_lower', ascending=True).drop('driver_name_lower', axis=1)
-        
-        # Seleziona colonne finali con i nomi desiderati
-        columns_to_show = ['driver_name', 'number', 'championships', 'wins', 'poles', 'podiums']
-        column_names = {
-            'driver_name': '👤 Driver Name',
-            'number': '🏁 Car Number',
-            'championships': '🏆 Titles Won',
-            'wins': '🥇 Wins',
-            'poles': '🚩 Poles',
-            'podiums': '🏅 Podiums'
-        }
-        
-        final_display = summary_display[columns_to_show].copy()
-        final_display.columns = [column_names[col] for col in columns_to_show]
-        
-        # Riempi valori mancanti con 0
-        final_display = final_display.fillna(0)
+        """Mostra Hall of Fame piloti divisa per categoria"""
 
-        st.dataframe(
-            final_display,
-            width='stretch',
-            hide_index=True,
-            height=400,
-            column_config={
-                '🏁 Car Number': st.column_config.NumberColumn(width='small'),
-                '🏆 Titles Won':  st.column_config.NumberColumn(width='small'),
-                '🥇 Wins':        st.column_config.NumberColumn(width='small'),
-                '🚩 Poles':       st.column_config.NumberColumn(width='small'),
-                '🏅 Podiums':     st.column_config.NumberColumn(width='small'),
-            }
-        )
-        
-        # Info aggiuntive
-        total_drivers = len(summary_display)
-        total_championships = summary_display['championships'].sum()
+        hof = self.get_hall_of_fame()
+
+        medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣']
+
+        def build_card_html(title: str, df: pd.DataFrame, unit: str) -> str:
+            rows_html = ''
+            for i in range(5):
+                if i < len(df):
+                    row = df.iloc[i]
+                    bg = 'rgba(255,255,255,0.05)' if i % 2 == 0 else 'transparent'
+                    rows_html += f'<div style="padding:0.45rem 0.6rem;border-radius:6px;background:{bg};font-size:0.95rem;">{medals[i]}&nbsp;<strong>{row["driver"]}</strong>&nbsp;<span style="color:var(--text-color);">· {int(row["count"])} {unit}</span></div>'
+                else:
+                    bg = 'rgba(255,255,255,0.05)' if i % 2 == 0 else 'transparent'
+                    rows_html += f'<div style="padding:0.45rem 0.6rem;border-radius:6px;background:{bg};height:2rem;"></div>'
+
+            return f'<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:1rem 1.2rem;margin-bottom:1rem;"><div style="font-size:1.05rem;font-weight:700;margin-bottom:0.8rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:0.5rem;">{title}</div>{rows_html}</div>'
 
         col1, col2 = st.columns(2)
 
         with col1:
-            st.info(f"👥 **{total_drivers}** registered drivers")
+            st.markdown(
+                build_card_html('🏆 Valid Championships Won',    hof['titles'],    'title(s)') +
+                build_card_html('🏎️ Track Time Records',        hof['records'],   'record(s)'),
+                unsafe_allow_html=True
+            )
 
         with col2:
-            st.success(f"🏆 **{int(total_championships)}** total championships won")
+            st.markdown(
+                build_card_html('🥇 Official Competitions Wins', hof['comp_wins'], 'win(s)') +
+                build_card_html('🏁 Single Race Wins',           hof['race_wins'], 'win(s)'),
+                unsafe_allow_html=True
+            )
     
     def show_driver_details(self, driver_data: Dict):
         """Mostra dettagli completi per il pilota selezionato"""
@@ -3432,20 +3507,40 @@ class ACCWebDashboard:
             return
         
         # Statistiche pilota
-        total_sessions  = driver_stats.get('total_sessions', 0)
-        num_tracks      = driver_stats.get('num_tracks', 0)
-        championships   = driver_stats.get('championships', 0)
-        wins            = driver_stats.get('wins', 0)
-        poles           = driver_stats.get('poles', 0)
-        podiums         = driver_stats.get('podiums', 0)
+        total_sessions     = driver_stats.get('total_sessions', 0)
+        num_tracks         = driver_stats.get('num_tracks', 0)
+        total_valid_laps   = driver_stats.get('total_valid_laps', 0)
+        championships      = driver_stats.get('championships', 0)
+        official_comp_wins = driver_stats.get('official_comp_wins', 0)
+        fun_comp_wins      = driver_stats.get('fun_comp_wins', 0)
+        wins               = driver_stats.get('wins', 0)
+        poles              = driver_stats.get('poles', 0)
+        podiums            = driver_stats.get('podiums', 0)
+        fastest_laps       = driver_stats.get('fastest_laps', 0)
+        ta_wins            = driver_stats.get('ta_wins', 0)
 
         st.markdown(f"""
         - 🎮 **Total Sessions:** {total_sessions}
-        - 🏁 **Tracks Driven:** {num_tracks}
+        - 🏎️ **Tracks Driven:** {num_tracks}
+        - 🏁 **Total Valid Laps:** {total_valid_laps}
+        """)
+
+        st.markdown("---")
+
+        st.markdown(f"""
         - 🏆 **Titles Won:** {championships}
-        - 🥇 **Wins:** {wins}
+        - 🥇 **Official Competitions Won:** {official_comp_wins}
+        - ⏱️ **Time Attack Wins:** {ta_wins}
+        - 🎉 **4fun Competitions Won:** {fun_comp_wins}
+        """)
+
+        st.markdown("---")
+
+        st.markdown(f"""
+        - 🏆 **Race Wins:** {wins}
         - 🚩 **Poles:** {poles}
         - 🏅 **Podiums:** {podiums}
+        - ⚡ **Fastest Laps:** {fastest_laps}
         """)
         
         # Elenco migliori tempi per pista
