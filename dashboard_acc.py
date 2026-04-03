@@ -825,7 +825,8 @@ class ACCWebDashboard:
                         tar.best_split3,
                         tar.points,
                         s.session_date,
-                        COALESCE(cm.car_name, tar.car_model) as car_name
+                        COALESCE(cm.car_name, tar.car_model) as car_name,
+                        tar.is_enrolled
                     FROM time_attack_results tar
                     JOIN drivers d ON tar.driver_id = d.driver_id
                     LEFT JOIN sessions s ON tar.session_id = s.session_id
@@ -861,7 +862,7 @@ class ACCWebDashboard:
                 # Crea DataFrame
                 data = []
                 prev_time = None
-                for idx, (driver, lap_time, split1, split2, split3, points, session_date, car_name) in enumerate(ta_results, 1):
+                for idx, (driver, lap_time, split1, split2, split3, points, session_date, car_name, is_enrolled) in enumerate(ta_results, 1):
                     # Calcola gap rispetto al pilota che precede
                     if idx > 1 and prev_time is not None:
                         gap_ms = lap_time - prev_time
@@ -895,7 +896,8 @@ class ACCWebDashboard:
                     data.append({
                         "Pos": str(idx),
                         "Driver": driver,
-                        "Points": f"{points:.1f}" if points and points > 0 else "0.0",
+                        "Type": "👤" if is_enrolled else "👻",
+                        "Points": f"{points:.1f}" if points and points > 0 else ("- " if not is_enrolled else "0.0"),
                         "Best Lap": self.format_lap_time(lap_time),
                         "Gap": gap_str,
                         "S1": split1_str,
@@ -924,7 +926,11 @@ class ACCWebDashboard:
                     styled_df,
                     width='stretch',
                     hide_index=True,
-                    height=table_height
+                    height=table_height,
+                    column_config={
+                        "Pos": st.column_config.TextColumn("Pos", width="small"),
+                        "Type": st.column_config.TextColumn("Type", width="small"),
+                    }
                 )
 
                 # Grafico scostamento dal tempo medio
@@ -940,7 +946,7 @@ class ACCWebDashboard:
 
                 # Prepara dati piloti con scostamento (ordinati dal più veloce al più lento)
                 pilot_data = []
-                for driver, lap_time, split1, split2, split3, points, session_date, car_name in ta_results:
+                for driver, lap_time, split1, split2, split3, points, session_date, car_name, is_enrolled in ta_results:
                     time_sec = lap_time / 1000
                     deviation = time_sec - avg_time
                     pilot_data.append({'driver': driver, 'deviation': deviation})
