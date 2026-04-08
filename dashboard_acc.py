@@ -19,7 +19,7 @@ from typing import Optional, Dict, List, Tuple
 
 # Configurazione pagina
 st.set_page_config(
-    page_title="TFL3 Standings Dashboard",
+    page_title="ACC Standings Dashboard",
     page_icon="🏁",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -679,14 +679,13 @@ class ACCWebDashboard:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            # Ottieni campionati TIER (solo TIER hanno Time Attack)
+            # Ottieni campionati con sessioni Time Attack (TIER e STANDARD)
             cursor.execute("""
                 SELECT ch.championship_id, ch.name, ch.is_completed, ch.start_date,
                        COUNT(DISTINCT tar.competition_id) as ta_results_count
                 FROM championships ch
                 LEFT JOIN competitions c ON c.championship_id = ch.championship_id
                 LEFT JOIN time_attack_results tar ON tar.competition_id = c.competition_id
-                WHERE ch.championship_type = 'tier'
                 GROUP BY ch.championship_id
                 ORDER BY
                     CASE WHEN ch.start_date IS NULL THEN 1 ELSE 0 END,
@@ -738,7 +737,8 @@ class ACCWebDashboard:
                     (SELECT COUNT(*) FROM time_attack_results WHERE competition_id = c.competition_id) as results_count,
                     l.name as league_name,
                     ch.tier_number,
-                    ch.name as tier_name
+                    ch.name as tier_name,
+                    ch.championship_type
                 FROM competitions c
                 LEFT JOIN championships ch ON c.championship_id = ch.championship_id
                 LEFT JOIN leagues l ON ch.league_id = l.league_id
@@ -762,16 +762,16 @@ class ACCWebDashboard:
             competition_map = {}
             default_index = 0
 
-            for idx, (comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name) in enumerate(competitions):
+            for idx, (comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name, championship_type) in enumerate(competitions):
                 round_str = f"R{round_num} - " if round_num else ""
                 status_str = " ✅" if is_completed else " 🔄"
                 date_str = f" ({date_start[:10]})" if date_start else ""
                 display_name = f"{round_str}{name} - {track}{date_str}{status_str}"
                 competition_options.append(display_name)
-                competition_map[display_name] = (comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name)
+                competition_map[display_name] = (comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name, championship_type)
 
             # Default: prima competizione con dati Time Attack
-            for idx, (comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name) in enumerate(competitions):
+            for idx, (comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name, championship_type) in enumerate(competitions):
                 if session_count > 0 or results_count > 0:
                     default_index = idx
                     break
@@ -785,7 +785,8 @@ class ACCWebDashboard:
             )
 
             if selected_competition:
-                comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name = competition_map[selected_competition]
+                comp_id, name, track, round_num, date_start, date_end, weekend_format, is_completed, session_count, results_count, league_name, tier_number, tier_name, championship_type = competition_map[selected_competition]
+                is_tier = (championship_type == 'tier')
 
                 # Header competizione
                 round_str = f"Round {round_num} - " if round_num else ""
@@ -897,7 +898,7 @@ class ACCWebDashboard:
                         "Pos": str(idx),
                         "Driver": driver,
                         "Type": "👤" if is_enrolled else "👻",
-                        "Points": f"{points:.1f}" if points and points > 0 else ("- " if not is_enrolled else "0.0"),
+                        "Points": f"{points:.1f}" if not is_tier else (f"{points:.1f}" if points and points > 0 else "-"),
                         "Best Lap": self.format_lap_time(lap_time),
                         "Gap": gap_str,
                         "S1": split1_str,
@@ -1069,8 +1070,8 @@ class ACCWebDashboard:
             return []
     
     def show_race_results(self):
-        """Mostra il report Race Results con selezione competizione"""
-        st.header("Race Results")
+        """Mostra il report Competition Results con selezione competizione"""
+        st.header("Competition Results")
 
         try:
             conn = sqlite3.connect(self.db_path)
@@ -1380,7 +1381,7 @@ class ACCWebDashboard:
             conn.close()
 
         except Exception as e:
-            st.error(f"❌ Error loading Race Results data: {e}")
+            st.error(f"❌ Error loading Competition Results data: {e}")
 
 
     # ==================== STANDINGS ====================
@@ -3830,7 +3831,7 @@ def main():
             [
                 "🏠 Homepage",
                 "⏱️ Time Attack",
-                "🏁 Race Results",
+                "🏁 Competition Results",
                 "🏆 Standings",
                 "📅 All Sessions",
                 "⚡ Best Laps",
@@ -3846,7 +3847,7 @@ def main():
         elif page == "⏱️ Time Attack":
             dashboard.show_time_attack_report()
 
-        elif page == "🏁 Race Results":
+        elif page == "🏁 Competition Results":
             dashboard.show_race_results()
 
         elif page == "🏆 Standings":
