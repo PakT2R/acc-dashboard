@@ -898,7 +898,7 @@ class ACCWebDashboard:
                         "Pos": str(idx),
                         "Driver": driver,
                         "Type": "👤" if is_enrolled else "👻",
-                        "Points": f"{points:.1f}" if not is_tier else (f"{points:.1f}" if points and points > 0 else "-"),
+                        "Points": f"{points:.1f}" if not is_tier else (f"{points:.1f}" if (points and points > 0) or is_enrolled else "-"),
                         "Best Lap": self.format_lap_time(lap_time),
                         "Gap": gap_str,
                         "S1": split1_str,
@@ -3831,7 +3831,7 @@ def main():
             [
                 "🏠 Homepage",
                 "⏱️ Time Attack",
-                "🏁 Competition Results",
+                "🏁 Competitions",
                 "🏆 Standings",
                 "📅 All Sessions",
                 "⚡ Best Laps",
@@ -3847,7 +3847,7 @@ def main():
         elif page == "⏱️ Time Attack":
             dashboard.show_time_attack_report()
 
-        elif page == "🏁 Competition Results":
+        elif page == "🏁 Competitions":
             dashboard.show_race_results()
 
         elif page == "🏆 Standings":
